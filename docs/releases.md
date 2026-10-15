@@ -25,7 +25,7 @@ Set these environment variables:
 Each matrix job creates its own temporary keys and schedules their deletion after
 use. A daily workflow recovers expired keys from interrupted jobs. Review and apply
 the [temporary-key IAM policy and lifecycle setup](temporary-test-keys.md) before
-enabling these workflows. Existing key-ARN variables are ignored by new workflows.
+enabling these workflows. Permanent key-ARN variables are no longer configured.
 Missing configuration fails integration and blocks release.
 CloudTrail may take several minutes; the test uses a unique description and a
 bounded polling window. It fails if the expected event never appears.

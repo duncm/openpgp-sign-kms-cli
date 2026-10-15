@@ -2,20 +2,6 @@
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "ProtectExistingPermanentTestKeys",
-      "Effect": "Deny",
-      "Action": [
-        "kms:TagResource",
-        "kms:UntagResource",
-        "kms:ScheduleKeyDeletion",
-        "kms:DisableKey"
-      ],
-      "Resource": [
-        "arn:aws:kms:ap-southeast-2:889580843530:key/a29cb599-e003-471f-80ef-ced3c06c923f",
-        "arn:aws:kms:ap-southeast-2:889580843530:key/84042b4b-b6b9-48e8-8dff-da2ac8e9ec58"
-      ]
-    },
-    {
       "Sid": "CreateTemporarySigningKeys",
       "Effect": "Allow",
       "Action": "kms:CreateKey",
@@ -187,19 +173,6 @@
           "kms:ScheduleKeyDeletionPendingWindowInDays": 7
         }
       }
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
-        "kms:DescribeKey",
-        "kms:GetPublicKey",
-        "kms:Sign"
-      ],
-      "Resource": [
-        "arn:aws:kms:ap-southeast-2:889580843530:key/a29cb599-e003-471f-80ef-ced3c06c923f",
-        "arn:aws:kms:ap-southeast-2:889580843530:key/84042b4b-b6b9-48e8-8dff-da2ac8e9ec58"
-      ],
-      "Sid": "ContinueValidatingExistingReleases"
     },
     {
       "Effect": "Allow",

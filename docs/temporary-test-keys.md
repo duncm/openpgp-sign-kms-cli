@@ -23,7 +23,7 @@ through `GITHUB_ENV`; the action and CLI signing interfaces are unchanged.
 
 Deletion uses KMS's minimum seven-day waiting period. Scheduling makes the key
 unusable immediately. Already-pending keys are treated as successfully cleaned up.
-No deletion is cancelled, and existing permanent keys are not retired by this change.
+No deletion is cancelled.
 
 `CreateKey` is not idempotent, so creation has automatic retries disabled. A lost
 response can still leave a key without a local journal entry. Tags are attached
@@ -59,29 +59,24 @@ within 24–48 hours of creation. An expiry tag does not itself trigger AWS dele
 
 The `openpgp-sign-kms-integration` inline policy on role
 `openpgp-sign-kms-github-integration` was reviewed and applied on 16 October 2026.
-The files below document the current policy and its previous configuration:
+Signing and deletion permissions are limited to temporary test keys:
 
 - [Current complete policy](iam/integration-role-policy.json)
-- [Previous policy snapshot](iam/integration-role-policy-before.json)
 
 The policy targets account `889580843530`, region `ap-southeast-2`, and the two
 `duncm` repositories. Other deployments must substitute their account, region,
-repository names, and permanent-key protection list.
+and repository names.
 
-| Permission change | Scope |
+| Permission | Scope |
 | --- | --- |
 | Create keys | Required tags; RSA-3072/Ed25519; `SIGN_VERIFY`; AWS-generated; single-region |
 | Tag keys at creation | Exact allowed tag names and required ownership values |
 | List keys, read metadata/tags | Account/region discovery for orphan cleanup |
 | Get public keys and sign | Temporary-key ownership tags and supported key properties |
 | Schedule deletion | Same restrictions; exactly seven days |
-| Existing key validation | Preserved so previously published workflows still work |
-| Explicit denial | Tagging, untagging, disabling, or scheduling deletion of the two existing permanent test keys |
 
 There is no new permission to cancel deletion, change key policies, create grants,
 or manage IAM. The OIDC trust policy and environment restrictions stay unchanged.
-The existing local provisioning user's permissions already permit replacing this
-role's inline policy; no additional local-user policy is proposed.
 
 ### Tagging permission boundary
 
@@ -89,10 +84,9 @@ KMS requires `kms:TagResource` on all keys in the account/region to tag keys dur
 creation. That permission can also authorize retagging existing keys; request-tag
 conditions alone are not a creation-only boundary.
 
-This policy is intended for the dedicated test account. It explicitly protects the
-two existing permanent test keys. Any additional long-lived keys must receive
-corresponding explicit-deny protection (or a key policy denying this role access)
-before being placed in this account. Do not reuse the policy unchanged in a
+This policy is intended for the dedicated test account. Any long-lived keys must
+receive explicit-deny protection (or a key policy denying this role access) before
+being placed in this account. Do not reuse the policy unchanged in a
 production account. Both repositories share the role; repository filtering in the
 helper prevents accidental cross-repository cleanup, not access by hostile code
 already authorized to assume that shared role.
@@ -113,10 +107,21 @@ manual integration in both repositories and confirm every created ARN reaches
 `PendingDeletion`. Dispatch orphan cleanup in dry-run mode, then exercise recovery
 with an expired temporary fixture. Ordinary PR CI remains independent of AWS.
 
-The old `KMS_RSA_KEY_ARN` and `KMS_ED25519_KEY_ARN` environment variables may remain
-for historical release workflows; the updated workflows ignore them. Before
-rolling back the IAM policy, clean up outstanding temporary keys so the daily
-workflow does not lose permission to retire them.
+The old `KMS_RSA_KEY_ARN` and `KMS_ED25519_KEY_ARN` GitHub environment variables
+have been removed from both repositories. Historical integration/release workflow
+versions that require those variables can no longer be rerun successfully. Current
+workflows receive their generated key ARNs through job-local environment variables.
+
+Before rolling back the IAM policy, clean up outstanding temporary keys so the
+daily workflow does not lose permission to retire them.
+
+## Permanent key retirement
+
+The original RSA-3072 and Ed25519 test keys were scheduled for deletion on
+16 October 2026, with deletion scheduled for 23 October. Both entered
+`PendingDeletion`, ending their use for signing. Their key-specific deny and legacy-access
+statements were removed from the integration role policy, and the old key-ARN
+variables were removed from both GitHub environments.
 
 ## Development and verification
 
@@ -132,16 +137,14 @@ Tests cover partial creation, lost responses, readiness failures, cleanup retrie
 malformed journals, ownership/account/region guards, expiry, pagination settings,
 dry runs, and idempotence. Both CI workflows run them without AWS credentials.
 
-The proposed policy passed AWS IAM Access Analyzer `ValidatePolicy` with no findings.
-Nine IAM custom-policy simulations confirmed the intended allows and denials,
-including explicit protection of permanent keys and rejection of missing ownership
-tags, other repositories, unsupported key types, multi-region keys, and non-seven-day
-deletion windows. These simulations cover the identity policy, not full live KMS
-resource-policy evaluation.
+The current policy passes AWS IAM Access Analyzer `ValidatePolicy` with no findings.
+Identity-policy simulations verify temporary-key access and rejection of missing
+ownership tags, unsupported key types, multi-region keys, and non-seven-day deletion
+windows. The retired permanent keys have no signing or deletion allow statement.
+These simulations cover the identity policy, not full live KMS resource-policy evaluation.
 
-Initial read-only sweeps against the test account found its two permanent keys and
-selected neither. The integration workflows validate creation, signing, and scheduling
-deletion with actual temporary keys. Daily cleanup also supports manual dry runs.
+The integration workflows validate creation, signing, and scheduling deletion with
+actual temporary keys. Daily cleanup also supports manual dry runs.
 
 ## AWS references
 
