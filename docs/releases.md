@@ -29,6 +29,20 @@ permissions are needed. Missing configuration fails integration and blocks relea
 CloudTrail may take several minutes; the test uses a unique description and a
 bounded polling window. It fails if the expected event never appears.
 
+## Immutable publication
+
+Enable release immutability in each repository before publishing stable versions:
+
+```sh
+gh api --method PUT repos/OWNER/REPO/immutable-releases
+```
+
+Replace OWNER/REPO with the repository name. The GitHub CLI creates an asset-bearing
+release as a draft, uploads its files, and then publishes it. Published assets and
+the version tag are locked. See [GitHub's release guide](https://cli.github.com/manual/gh_release_create).
+Do not create a release for the action's moving major tag; only semantic-version
+tags receive releases.
+
 ## Publish
 
 1. Update the package version and release notes in a normal main-branch change.

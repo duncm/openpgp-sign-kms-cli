@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Production SDK integration against a local KMS protocol server. No real AWS access."""
-import base64,hashlib,http.server,json,os,pathlib,subprocess,tempfile,threading
+import base64,hashlib,http.server,json,os,pathlib,subprocess,tempfile,threading,time
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 CLI=str(ROOT/'target/debug/openpgp-sign-kms')
 VERSION=subprocess.check_output([CLI,'--version']).decode().split()[-1]
@@ -19,8 +19,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
             result={'KeyMetadata':{'AWSAccountId':'123456789012','KeyId':ARN.split('/')[-1],'Arn':ARN,'CreationDate':1700000000,'Enabled':not s.disabled,'KeyState':'Disabled' if s.disabled else 'Enabled','KeyUsage':'SIGN_VERIFY','KeySpec':s.spec}}
         elif op=='GetPublicKey':
             result={'KeyId':ARN,'PublicKey':base64.b64encode(s.der).decode(),'KeySpec':s.spec,'KeyUsage':'SIGN_VERIFY','SigningAlgorithms':(['ED25519_SHA_512'] if s.spec.startswith('ECC') else ['RSASSA_PKCS1_V1_5_SHA_256','RSASSA_PKCS1_V1_5_SHA_384','RSASSA_PKCS1_V1_5_SHA_512'])}
+            if s.wrong_key:result['KeyId']=ARN.replace('12345678-', '87654321-', 1)
+            if s.missing_algorithm:result['SigningAlgorithms']=[]
         elif op=='Sign':
             s.attempts+=1
+            if s.timeout:
+                time.sleep(65)
+                self.close_connection=True
+                return
             if s.denied:
                 status=400;result={'__type':'AccessDeniedException','message':'denied test'}
             elif s.attempts<=s.failures:
@@ -54,13 +60,15 @@ def main():
    env=dict(os.environ,AWS_ACCESS_KEY_ID='test',AWS_SECRET_ACCESS_KEY='test',AWS_EC2_METADATA_DISABLED='true',AWS_ENDPOINT_URL_KMS=f'http://127.0.0.1:{server.server_port}')
    env.pop('AWS_SESSION_TOKEN',None)
    try:
-    for scenario in (['success','disabled','corrupt','retry','exhausted','denied','bad-status','long-description','git-auto','git-unrecognized','git-off']+(['sha384','sha512'] if spec=='RSA_2048' else [])):
+    for scenario in (['success','disabled','corrupt','retry','exhausted','denied','bad-status','status-write','long-description','git-auto','git-unrecognized','git-off','wrong-key','missing-algorithm']+(['sha384','sha512','timeout'] if spec=='RSA_2048' else [])):
      server.calls=[];server.attempts=0;server.failures=2 if scenario=='retry' else 99 if scenario=='exhausted' else 0;server.corrupt=scenario=='corrupt';server.disabled=scenario=='disabled';server.denied=scenario=='denied'
+     server.timeout=scenario=='timeout';server.wrong_key=scenario=='wrong-key';server.missing_algorithm=scenario=='missing-algorithm'
      server.algorithm='ED25519_SHA_512' if spec.startswith('ECC') else 'RSASSA_PKCS1_V1_5_SHA_'+(scenario[3:] if scenario.startswith('sha') else '256')
      output=root/'out';output.unlink(missing_ok=True)
      args=[CLI,'-bsau',ARN,'-o',str(output),'--description','sdk test ✓' if scenario!='long-description' else 'x'*2000]
      if scenario.startswith('sha'):args+=['--digest-algo',scenario]
-     args+=['--status-fd', '99999' if scenario=='bad-status' else '2']
+     status_file=open('/dev/full','wb') if scenario=='status-write' else None
+     args+=['--status-fd', str(status_file.fileno()) if status_file else '99999' if scenario=='bad-status' else '2']
      payload=b'sdk test\n'
      description='sdk test ✓'
      if scenario in ['git-auto','git-off']:
@@ -69,12 +77,18 @@ def main():
       args+=['--git-metadata', 'off' if scenario=='git-off' else 'auto']
      if scenario=='git-auto':
       description+='\ngit_type=tag payload_sha256='+hashlib.sha256(payload).hexdigest()+' target_id='+'a'*40+' target_type=commit tag=v1%2Ftest'
-     result=subprocess.run(args,input=payload,env=env,capture_output=True)
+     started=time.monotonic()
+     invocation_env=dict(env,OPENPGP_SIGN_KMS_GIT_METADATA='auto' if scenario=='git-off' else 'off')
+     try:
+      result=subprocess.run(args,input=payload,env=invocation_env,capture_output=True,timeout=75,pass_fds=(status_file.fileno(),) if status_file else ())
+     finally:
+      if status_file:status_file.close()
+     if scenario=='timeout':assert 55<=time.monotonic()-started<75,(scenario,result.stderr)
      success=scenario in ['success','retry','sha384','sha512','git-auto','git-unrecognized','git-off']
      assert (result.returncode==0)==success,(scenario,result.stderr)
      assert output.exists()==success,(scenario,'output publication')
      assert (b'[GNUPG:] SIG_CREATED ' in result.stderr)==success
-     expected=3 if scenario in ['retry','exhausted'] else 0 if scenario in ['disabled','bad-status','long-description'] else 1
+     expected=3 if scenario in ['retry','exhausted'] else 0 if scenario in ['disabled','bad-status','status-write','long-description','wrong-key','missing-algorithm'] else 1
      assert server.attempts==expected,(scenario,server.attempts)
      for op,data,ua in server.calls:
       if op=='Sign':

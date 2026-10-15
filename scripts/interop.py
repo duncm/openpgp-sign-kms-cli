@@ -59,6 +59,7 @@ def main():
             cmd(['git','verify-commit','HEAD']);cmd(['git','verify-tag','v0.1-test'])
             # These do not initialize AWS, even with no credentials.
             cmd([CLI,'--gpg-program','/bin/false','--verify','missing'],ok=False)
+            cmd([CLI,'--gpg-program','/does/not/exist','--verify','missing'],ok=False)
             cmd([CLI,'--gpg-program',CLI,'--verify','missing'],ok=False)
             cmd([CLI,'--verify','--sign'],ok=False)
             print(f'{kind}: export, formats, edge cases, Git signing and delegation passed',flush=True)
