@@ -182,6 +182,7 @@ pub fn export<R: RemoteSigner>(
     comment: Option<&str>,
     output: &mut dyn Write,
     armor: bool,
+    hash: HashAlgorithm,
 ) -> Result<()> {
     ensure!(
         !name.contains(['\n', '\r'])
@@ -191,7 +192,7 @@ pub fn export<R: RemoteSigner>(
     );
     let uid = UserID::from_unchecked_address(Some(name), comment, email)?;
     let signature: Signature = SignatureBuilder::new(SignatureType::PositiveCertification)
-        .set_hash_algo(signer.default_hash())
+        .set_hash_algo(hash)
         .set_signature_creation_time(SystemTime::now())?
         .set_key_flags(KeyFlags::empty().set_certification().set_signing())?
         .set_preferred_hash_algorithms(vec![signer.default_hash()])?

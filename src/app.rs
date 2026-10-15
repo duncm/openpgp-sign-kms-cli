@@ -66,6 +66,7 @@ pub fn run<R: crate::kms::RemoteSigner>(
             args.export_comment.as_deref(),
             output.writer(),
             args.armor,
+            hash,
         )?;
     } else {
         pgp::sign(

@@ -134,3 +134,89 @@ fn declared_key_size_checked() {
         .is_err()
     );
 }
+
+#[test]
+fn sequoia_verifies_exported_certificates_and_every_format() {
+    use sequoia_openpgp::{
+        Cert, KeyHandle,
+        parse::{
+            Parse,
+            stream::{
+                DetachedVerifierBuilder, MessageLayer, MessageStructure, VerificationHelper,
+                VerifierBuilder,
+            },
+        },
+        policy::StandardPolicy,
+    };
+    use std::io::Read;
+    struct Helper(Cert);
+    impl VerificationHelper for Helper {
+        fn get_certs(&mut self, _: &[KeyHandle]) -> sequoia_openpgp::Result<Vec<Cert>> {
+            Ok(vec![self.0.clone()])
+        }
+        fn check(&mut self, structure: MessageStructure) -> sequoia_openpgp::Result<()> {
+            let mut valid = false;
+            for layer in structure.iter() {
+                if let MessageLayer::SignatureGroup { results } = layer {
+                    anyhow::ensure!(
+                        !results.is_empty() && results.iter().all(Result::is_ok),
+                        "invalid signature group"
+                    );
+                    valid = true;
+                }
+            }
+            anyhow::ensure!(valid, "no verified signature");
+            Ok(())
+        }
+    }
+    for kind in [Kind::Rsa(2048), Kind::Ed25519] {
+        for mode in [Mode::Attached, Mode::Detached, Mode::Clear] {
+            let (mut signer, calls) = signer(kind, false, false);
+            let hash = signer.default_hash();
+            let mut certificate = Vec::new();
+            openpgp_sign_kms::pgp::export(
+                &mut signer,
+                "Test",
+                "test@example.com",
+                None,
+                &mut certificate,
+                true,
+                hash,
+            )
+            .unwrap();
+            let certificate = Cert::from_bytes(&certificate).unwrap();
+            calls.store(0, Ordering::SeqCst);
+            let mut output = Vec::new();
+            let input = b"verify this\n";
+            openpgp_sign_kms::pgp::sign(
+                &mut &input[..],
+                &mut output,
+                signer,
+                mode,
+                true,
+                hash,
+                std::time::SystemTime::now(),
+            )
+            .unwrap();
+            assert_eq!(calls.load(Ordering::SeqCst), 1);
+            let policy = StandardPolicy::new();
+            if mode == Mode::Detached {
+                let mut verifier = DetachedVerifierBuilder::from_bytes(&output)
+                    .unwrap()
+                    .with_policy(&policy, None, Helper(certificate))
+                    .unwrap();
+                verifier.verify_bytes(input).unwrap();
+            } else {
+                let mut verifier = VerifierBuilder::from_bytes(&output)
+                    .unwrap()
+                    .with_policy(&policy, None, Helper(certificate))
+                    .unwrap();
+                let mut recovered = Vec::new();
+                verifier.read_to_end(&mut recovered).unwrap();
+                if mode == Mode::Attached {
+                    assert_eq!(recovered, input);
+                }
+            }
+        }
+    }
+}

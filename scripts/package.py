@@ -4,6 +4,8 @@ import hashlib,json,pathlib,shutil,subprocess,sys,tarfile
 root=pathlib.Path(__file__).resolve().parents[1]
 target=sys.argv[1]
 if target not in ['x86_64-unknown-linux-gnu','aarch64-unknown-linux-gnu']:raise SystemExit('unsupported target')
+host=subprocess.check_output(['rustc','-vV'],text=True).split('host: ')[1].splitlines()[0]
+if host!=target:raise SystemExit('target must match the native build host')
 meta=json.loads(subprocess.check_output(['cargo','metadata','--locked','--format-version','1'],cwd=root))
 version=next(p['version'] for p in meta['packages'] if p['id']==meta['resolve']['root'])
 dist=root/'dist';dist.mkdir(exist_ok=True)
@@ -17,7 +19,7 @@ with tarfile.open(archive,'w:gz') as tar:
 packages=[{'name':p['name'],'version':p['version'],'license':p['license'],'source':p['source']} for p in meta['packages']]
 (dist/f'dependencies-{target}.json').write_text(json.dumps(packages,indent=2)+'\n')
 (dist/f'sbom-{target}.cdx.json').write_text(json.dumps({'bomFormat':'CycloneDX','specVersion':'1.5','version':1,'components':[{'type':'library','name':p['name'],'version':p['version'],'purl':f"pkg:cargo/{p['name']}@{p['version']}"} for p in packages]},indent=2)+'\n')
-if target.startswith('x86_64'):
+if target.startswith('x86_64') or '--source' in sys.argv:
  source=root/'target'/'release-source';shutil.rmtree(source,ignore_errors=True);source.mkdir()
  tracked=subprocess.check_output(['git','ls-files','-z'],cwd=root).decode().split('\0')
  for name in filter(None,tracked):
