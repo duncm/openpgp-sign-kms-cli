@@ -5,7 +5,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: cli-release-${{ github.ref_name }}
+  group: cli-release
   cancel-in-progress: false
 jobs:
   ci:
