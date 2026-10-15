@@ -32,6 +32,8 @@ jobs:
             ~/.cargo/git
             target
           key: cargo-${{ runner.os }}-${{ runner.arch }}-${{ matrix.os }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: |
+            cargo-${{ runner.os }}-${{ runner.arch }}-${{ matrix.os }}-
       - name: Check
         shell: bash
         run: |

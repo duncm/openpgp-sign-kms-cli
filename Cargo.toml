@@ -10,7 +10,7 @@ repository = "https://github.com/duncm/openpgp-sign-kms-cli"
 [dependencies]
 anyhow = "1"
 aws-config = "1.12"
-aws-sdk-kms = "1.123"
+aws-sdk-kms = { version = "1.123", default-features = false, features = ["default-https-client", "rt-tokio"] }
 base64 = "0.22"
 clap = { version = "4.6", features = ["derive", "env"] }
 hex = "0.4"

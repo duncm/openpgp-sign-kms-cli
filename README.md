@@ -1,7 +1,7 @@
 # OpenPGP Sign with AWS KMS
 
 Create GPG-compatible signatures without exporting your private key from AWS KMS.
-Supports RSA and Ed25519 on Linux x86_64 and ARM64.
+Supports RSA and Ed25519 on Linux x86_64 and ARM64 (glibc 2.35+, including Ubuntu 22.04/24.04).
 
 > Initial release preparation: binaries are published only after live AWS integration passes.
 
