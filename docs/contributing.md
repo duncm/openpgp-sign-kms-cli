@@ -26,3 +26,9 @@ it is never included in release archives or selected by the production CLI.
 
 Run `cargo fmt` before submitting. CI covers Ubuntu 22.04/24.04 on x86_64/ARM64.
 PR tests require neither AWS credentials nor production keys.
+
+## Commit signatures
+
+All commits must be OpenPGP/GPG signed. Configure your signing key and use
+`git commit -S`; verify with `git log --show-signature`. Do not disable commit
+signing when preparing changes or releases.
