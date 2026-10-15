@@ -5,6 +5,7 @@
 - **CI:** pull requests, main pushes and manual dispatch; read-only, no AWS.
 - **AWS integration:** manual or called by release; GitHub OIDC, environment `integration`.
 - **Release:** `v*` tags; validates version/main ancestry and publishes only after tests.
+- **Orphan key cleanup:** daily/manual; retires expired temporary integration keys.
 - **Maintenance:** weekly/manual dependency checks and external links.
 
 External actions are pinned by SHA. Dependabot updates dependencies and action
@@ -19,13 +20,13 @@ Set these environment variables:
 | Variable | Meaning |
 | --- | --- |
 | `AWS_ROLE_ARN` | OIDC role trusted for this repository/environment |
-| `AWS_REGION` | Region containing both test keys |
-| `KMS_RSA_KEY_ARN` | Enabled RSA signing key |
-| `KMS_ED25519_KEY_ARN` | Enabled Ed25519 signing key |
+| `AWS_REGION` | Region in which temporary test keys are created |
 
-Grant the role DescribeKey, GetPublicKey and Sign on those test keys, plus
-`cloudtrail:LookupEvents` on `*` for the audit check. No key creation/deletion
-permissions are needed. Missing configuration fails integration and blocks release.
+Each matrix job creates its own temporary keys and schedules their deletion after
+use. A daily workflow recovers expired keys from interrupted jobs. Review and apply
+the [temporary-key IAM policy and lifecycle setup](temporary-test-keys.md) before
+enabling these workflows. Existing key-ARN variables are ignored by new workflows.
+Missing configuration fails integration and blocks release.
 CloudTrail may take several minutes; the test uses a unique description and a
 bounded polling window. It fails if the expected event never appears.
 
