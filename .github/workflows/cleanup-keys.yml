@@ -1,0 +1,45 @@
+name: Orphan key cleanup
+on:
+  schedule:
+    - cron: '49 4 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Report eligible keys without scheduling deletion
+        type: boolean
+        default: true
+permissions:
+  contents: read
+concurrency:
+  group: orphan-key-cleanup
+  cancel-in-progress: false
+jobs:
+  cleanup:
+    if: github.ref == 'refs/heads/main'
+    environment: integration
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          role-session-name: orphan-cleanup-${{ github.run_id }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Schedule expired temporary keys for deletion
+        env:
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'true' || 'false' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=()
+          if [[ "$DRY_RUN" == true ]]; then args+=(--dry-run); fi
+          python3 scripts/kms-test-keys.py sweep "${args[@]}" 2>&1 | tee cleanup-report.log
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: orphan-key-cleanup-report
+          path: cleanup-report.log

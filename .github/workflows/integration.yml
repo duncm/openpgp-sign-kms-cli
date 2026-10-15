@@ -8,12 +8,14 @@ on:
         default: false
 permissions:
   contents: read
-  id-token: write
 jobs:
   test:
+    permissions:
+      contents: read
+      id-token: write
     environment: integration
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -32,9 +34,7 @@ jobs:
         env:
           ROLE: ${{ vars.AWS_ROLE_ARN }}
           REGION: ${{ vars.AWS_REGION }}
-          RSA: ${{ vars.KMS_RSA_KEY_ARN }}
-          ED: ${{ vars.KMS_ED25519_KEY_ARN }}
-        run: test -n "$ROLE" && test -n "$REGION" && test -n "$RSA" && test -n "$ED"
+        run: test -n "$ROLE" && test -n "$REGION"
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         if: inputs.candidate
         with:
@@ -54,13 +54,37 @@ jobs:
         run: |
           mkdir -p dist/test
           tar -xzf dist/openpgp-sign-kms-*-"$TARGET".tar.gz -C dist/test
-      - uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+      - id: credentials
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
           role-session-name: kms-integration-${{ github.run_id }}
           aws-region: ${{ vars.AWS_REGION }}
-      - name: Sign, verify and check CloudTrail
+      - name: Create temporary keys
+        id: keys
         env:
-          KMS_RSA_KEY_ARN: ${{ vars.KMS_RSA_KEY_ARN }}
-          KMS_ED25519_KEY_ARN: ${{ vars.KMS_ED25519_KEY_ARN }}
+          KMS_TEST_JOB: test-${{ matrix.target }}
+        run: python3 scripts/kms-test-keys.py create --kind RSA --kind ED25519 --state "$RUNNER_TEMP/kms-test-keys.jsonl"
+      - name: Sign, verify and check CloudTrail
         run: python3 scripts/live.py "$PWD/dist/test/openpgp-sign-kms"
+      - name: Refresh cleanup credentials
+        if: ${{ always() && steps.credentials.outcome == 'success' && steps.keys.outcome != 'skipped' }}
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          role-session-name: kms-cleanup-${{ github.run_id }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Schedule temporary key deletion
+        if: ${{ always() && steps.credentials.outcome == 'success' && steps.keys.outcome != 'skipped' }}
+        timeout-minutes: 15
+        env:
+          KMS_TEST_JOB: test-${{ matrix.target }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/kms-test-keys.py cleanup --state "$RUNNER_TEMP/kms-test-keys.jsonl" 2>&1 | tee "$RUNNER_TEMP/kms-key-cleanup.log"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: key-cleanup-${{ matrix.target }}
+          path: ${{ runner.temp }}/kms-key-cleanup.log

@@ -1,0 +1,216 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ProtectExistingPermanentTestKeys",
+      "Effect": "Deny",
+      "Action": [
+        "kms:TagResource",
+        "kms:UntagResource",
+        "kms:ScheduleKeyDeletion",
+        "kms:DisableKey"
+      ],
+      "Resource": [
+        "arn:aws:kms:ap-southeast-2:889580843530:key/a29cb599-e003-471f-80ef-ced3c06c923f",
+        "arn:aws:kms:ap-southeast-2:889580843530:key/84042b4b-b6b9-48e8-8dff-da2ac8e9ec58"
+      ]
+    },
+    {
+      "Sid": "CreateTemporarySigningKeys",
+      "Effect": "Allow",
+      "Action": "kms:CreateKey",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "ap-southeast-2",
+          "aws:RequestTag/Project": "openpgp-sign-kms",
+          "aws:RequestTag/Purpose": "integration-temporary",
+          "aws:RequestTag/ManagedBy": "openpgp-sign-kms-ci",
+          "aws:RequestTag/Repository": [
+            "duncm/openpgp-sign-kms",
+            "duncm/openpgp-sign-kms-cli"
+          ],
+          "kms:KeySpec": [
+            "RSA_3072",
+            "ECC_NIST_EDWARDS25519"
+          ],
+          "kms:KeyUsage": "SIGN_VERIFY",
+          "kms:KeyOrigin": "AWS_KMS"
+        },
+        "StringLike": {
+          "aws:RequestTag/RunId": "?*",
+          "aws:RequestTag/RunAttempt": "?*",
+          "aws:RequestTag/Job": "?*",
+          "aws:RequestTag/ExpiresAt": "?*"
+        },
+        "ForAllValues:StringEquals": {
+          "aws:TagKeys": [
+            "Project",
+            "Purpose",
+            "ManagedBy",
+            "Repository",
+            "RunId",
+            "RunAttempt",
+            "Job",
+            "ExpiresAt"
+          ]
+        },
+        "Null": {
+          "aws:TagKeys": "false"
+        },
+        "Bool": {
+          "kms:MultiRegion": "false",
+          "kms:BypassPolicyLockoutSafetyCheck": "false"
+        }
+      }
+    },
+    {
+      "Sid": "TagTemporaryKeysAtCreation",
+      "Effect": "Allow",
+      "Action": "kms:TagResource",
+      "Resource": "arn:aws:kms:ap-southeast-2:889580843530:key/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "ap-southeast-2",
+          "aws:RequestTag/Project": "openpgp-sign-kms",
+          "aws:RequestTag/Purpose": "integration-temporary",
+          "aws:RequestTag/ManagedBy": "openpgp-sign-kms-ci",
+          "aws:RequestTag/Repository": [
+            "duncm/openpgp-sign-kms",
+            "duncm/openpgp-sign-kms-cli"
+          ]
+        },
+        "StringLike": {
+          "aws:RequestTag/RunId": "?*",
+          "aws:RequestTag/RunAttempt": "?*",
+          "aws:RequestTag/Job": "?*",
+          "aws:RequestTag/ExpiresAt": "?*"
+        },
+        "ForAllValues:StringEquals": {
+          "aws:TagKeys": [
+            "Project",
+            "Purpose",
+            "ManagedBy",
+            "Repository",
+            "RunId",
+            "RunAttempt",
+            "Job",
+            "ExpiresAt"
+          ]
+        },
+        "Null": {
+          "aws:TagKeys": "false"
+        }
+      }
+    },
+    {
+      "Sid": "DiscoverKeysForOrphanCleanup",
+      "Effect": "Allow",
+      "Action": "kms:ListKeys",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "ap-southeast-2"
+        }
+      }
+    },
+    {
+      "Sid": "InspectKeysForOrphanCleanup",
+      "Effect": "Allow",
+      "Action": [
+        "kms:DescribeKey",
+        "kms:ListResourceTags"
+      ],
+      "Resource": "arn:aws:kms:ap-southeast-2:889580843530:key/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "ap-southeast-2"
+        }
+      }
+    },
+    {
+      "Sid": "SignWithTemporaryKeys",
+      "Effect": "Allow",
+      "Action": [
+        "kms:GetPublicKey",
+        "kms:Sign"
+      ],
+      "Resource": "arn:aws:kms:ap-southeast-2:889580843530:key/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "ap-southeast-2",
+          "aws:ResourceTag/Project": "openpgp-sign-kms",
+          "aws:ResourceTag/Purpose": "integration-temporary",
+          "aws:ResourceTag/ManagedBy": "openpgp-sign-kms-ci",
+          "aws:ResourceTag/Repository": [
+            "duncm/openpgp-sign-kms",
+            "duncm/openpgp-sign-kms-cli"
+          ],
+          "kms:KeySpec": [
+            "RSA_3072",
+            "ECC_NIST_EDWARDS25519"
+          ],
+          "kms:KeyUsage": "SIGN_VERIFY",
+          "kms:KeyOrigin": "AWS_KMS"
+        },
+        "Bool": {
+          "kms:MultiRegion": "false"
+        }
+      }
+    },
+    {
+      "Sid": "ScheduleTemporaryKeyDeletion",
+      "Effect": "Allow",
+      "Action": "kms:ScheduleKeyDeletion",
+      "Resource": "arn:aws:kms:ap-southeast-2:889580843530:key/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "ap-southeast-2",
+          "aws:ResourceTag/Project": "openpgp-sign-kms",
+          "aws:ResourceTag/Purpose": "integration-temporary",
+          "aws:ResourceTag/ManagedBy": "openpgp-sign-kms-ci",
+          "aws:ResourceTag/Repository": [
+            "duncm/openpgp-sign-kms",
+            "duncm/openpgp-sign-kms-cli"
+          ],
+          "kms:KeySpec": [
+            "RSA_3072",
+            "ECC_NIST_EDWARDS25519"
+          ],
+          "kms:KeyUsage": "SIGN_VERIFY",
+          "kms:KeyOrigin": "AWS_KMS"
+        },
+        "Bool": {
+          "kms:MultiRegion": "false"
+        },
+        "NumericEquals": {
+          "kms:ScheduleKeyDeletionPendingWindowInDays": 7
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "kms:DescribeKey",
+        "kms:GetPublicKey",
+        "kms:Sign"
+      ],
+      "Resource": [
+        "arn:aws:kms:ap-southeast-2:889580843530:key/a29cb599-e003-471f-80ef-ced3c06c923f",
+        "arn:aws:kms:ap-southeast-2:889580843530:key/84042b4b-b6b9-48e8-8dff-da2ac8e9ec58"
+      ],
+      "Sid": "ContinueValidatingExistingReleases"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "cloudtrail:LookupEvents",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "ap-southeast-2"
+        }
+      },
+      "Sid": "CheckCloudTrailDescriptions"
+    }
+  ]
+}
