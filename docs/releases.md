@@ -52,3 +52,16 @@ The release pipeline does not depend on using this signer to sign its own releas
 
 Rehearse with a prerelease tag before publishing the first stable CLI release.
 The action must be pinned to a published CLI release afterward.
+
+## Initial release rehearsal
+
+The [0.1.0-rc.1 rehearsal](https://github.com/duncm/openpgp-sign-kms-cli/actions/runs/38806205307)
+passed the four-runner offline matrix, candidate-binary live AWS tests on both
+architectures, packaging, attestation, and publication.
+The [intentional version-mismatch test](https://github.com/duncm/openpgp-sign-kms-cli/actions/runs/38808161422)
+failed validation and skipped integration, attestation, and publication.
+Its `v0.0.0-rehearsal-invalid` tag is retained as a test record and has no release.
+
+Create release tags with `git tag -s vVERSION -m 'Release VERSION'` and verify
+with `git verify-tag vVERSION` before pushing. Contributor commits must also be
+GPG signed as described in the contributor guide.
