@@ -44,6 +44,13 @@ the version tag are locked. See [GitHub's release guide](https://cli.github.com/
 Do not create a release for the action's moving major tag; only semantic-version
 tags receive releases.
 
+## Release credentials
+
+The publishing job uses the protected `release` environment and a repository-scoped
+GitHub App token. Configure the [release App](release-app.md) before merging the
+App-authentication change. The built-in workflow token remains read-only in that
+job; attestation continues to use its existing narrowly scoped permissions.
+
 ## Publish
 
 1. Update the package version and release notes in a normal main-branch change.

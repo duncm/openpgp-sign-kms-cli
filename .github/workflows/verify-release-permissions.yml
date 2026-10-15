@@ -1,0 +1,69 @@
+name: Release permission verification
+on:
+  workflow_dispatch:
+concurrency:
+  group: release-permission-verification
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.ref == 'refs/heads/main'
+    environment: release
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    env:
+      GH_REPO: ${{ github.repository }}
+      VERSION_PROBE: __release_hardening_version
+      MAJOR_PROBE: __release_hardening_major
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Create repository-scoped release token
+        id: release-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+      - name: Verify release-token permissions against isolated tag rules
+        env:
+          GH_TOKEN: ${{ steps.release-token.outputs.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          base=$(git rev-parse HEAD^)
+          test "$(git rev-parse "$VERSION_PROBE^{commit}")" = "$GITHUB_SHA"
+          gh api --method POST "repos/$GH_REPO/git/refs" -f "ref=refs/tags/$MAJOR_PROBE" -f "sha=$GITHUB_SHA"
+          gh api --method PATCH "repos/$GH_REPO/git/refs/tags/$MAJOR_PROBE" -f "sha=$base" -F force=true
+          test "$(gh api "repos/$GH_REPO/git/ref/tags/$MAJOR_PROBE" --jq .object.sha)" = "$base"
+          gh release create "$VERSION_PROBE" --draft --verify-tag --title 'Release permission verification (draft)' --notes 'Temporary draft for checking release API permissions under tag rules.'
+          python3 -c 'from pathlib import Path; Path("release-permissions.txt").write_text("Temporary release permission verification\n")'
+          gh release upload "$VERSION_PROBE" release-permissions.txt
+          gh release edit "$VERSION_PROBE" --notes 'Draft creation, asset upload, and update permissions verified.'
+          test "$(gh release view "$VERSION_PROBE" --json isDraft --jq .isDraft)" = true
+          test "$(gh release view "$VERSION_PROBE" --json assets --jq '.assets | length')" = 1
+          if gh api --method PATCH "repos/$GH_REPO/git/refs/tags/$VERSION_PROBE" -f "sha=$base" -F force=true > /tmp/version-update.txt 2>&1; then
+            echo 'Version tag update unexpectedly allowed' >&2; exit 1
+          fi
+          grep -E 'HTTP (403|422)' /tmp/version-update.txt
+          if gh api --method DELETE "repos/$GH_REPO/git/refs/tags/$MAJOR_PROBE" > /tmp/tag-delete.txt 2>&1; then
+            echo 'Tag deletion unexpectedly allowed' >&2; exit 1
+          fi
+          grep -E 'HTTP (403|422)' /tmp/tag-delete.txt
+      - name: Remove only the temporary draft
+        if: ${{ always() && steps.release-token.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ steps.release-token.outputs.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$VERSION_PROBE" --json isDraft --jq .isDraft > /tmp/probe-draft.txt 2>/dev/null; then
+            test "$(cat /tmp/probe-draft.txt)" = true
+            gh release delete "$VERSION_PROBE" --yes
+          fi
