@@ -44,7 +44,8 @@ For code changes, make a new version/tag rather than moving a versioned tag.
 
 CLI archives are built on Ubuntu 22.04 for x86_64 and ARM64. The source bundle
 contains this project, vendored Cargo dependency sources, Cargo configuration,
-license files and rebuild instructions. `dependencies.json` and a CycloneDX SBOM
+license files and rebuild instructions. Every binary archive also includes full
+dependency notices and its dependency inventory. `dependencies.json` and a CycloneDX SBOM
 record the locked packages. Build provenance is attached through GitHub attestations.
 
 Consumers can use `gh attestation verify ARCHIVE --repo duncm/openpgp-sign-kms-cli`.
