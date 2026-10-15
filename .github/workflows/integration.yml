@@ -1,0 +1,64 @@
+name: AWS integration
+on:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      candidate:
+        type: boolean
+        default: false
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  test:
+    environment: integration
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+          - os: ubuntu-22.04-arm
+            target: aarch64-unknown-linux-gnu
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - name: Trusted source only
+        run: git merge-base --is-ancestor HEAD origin/main
+      - name: Require environment configuration
+        env:
+          ROLE: ${{ vars.AWS_ROLE_ARN }}
+          REGION: ${{ vars.AWS_REGION }}
+          RSA: ${{ vars.KMS_RSA_KEY_ARN }}
+          ED: ${{ vars.KMS_ED25519_KEY_ARN }}
+        run: test -n "$ROLE" && test -n "$REGION" && test -n "$RSA" && test -n "$ED"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        if: inputs.candidate
+        with:
+          name: cli-${{ matrix.target }}
+          path: dist
+      - name: Build development candidate
+        if: ${{ !inputs.candidate }}
+        run: |
+          sudo apt-get update && sudo apt-get install -y build-essential pkg-config clang libclang-dev perl
+          cargo build --release --locked
+          mkdir -p dist/test
+          cp target/release/openpgp-sign-kms dist/test/
+      - name: Extract release candidate
+        if: inputs.candidate
+        run: |
+          mkdir -p dist/test
+          tar -xzf dist/openpgp-sign-kms-*.tar.gz -C dist/test
+      - uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          role-session-name: kms-integration-${{ github.run_id }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Sign, verify and check CloudTrail
+        env:
+          KMS_RSA_KEY_ARN: ${{ vars.KMS_RSA_KEY_ARN }}
+          KMS_ED25519_KEY_ARN: ${{ vars.KMS_ED25519_KEY_ARN }}
+        run: python3 scripts/live.py "$PWD/dist/test/openpgp-sign-kms"
