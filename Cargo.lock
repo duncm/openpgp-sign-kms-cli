@@ -351,7 +351,7 @@ dependencies = [
  "hmac",
  "http",
  "percent-encoding",
- "sha2 0.11.1",
+ "sha2",
  "time",
  "tracing",
 ]
@@ -1690,7 +1690,7 @@ dependencies = [
  "openssl",
  "predicates",
  "sequoia-openpgp",
- "sha2 0.10.9",
+ "sha2",
  "tempfile",
  "tokio",
 ]
@@ -2212,17 +2212,6 @@ checksum = "1f606421e4a6012877e893c399822a4ed4b089164c5969424e1b9d1e66e6964b"
 dependencies = [
  "digest 0.10.7",
  "generic-array 1.4.5",
-]
-
-[[package]]
-name = "sha2"
-version = "0.10.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a7507d819769d01a365ab707794a4084392c824f54a7a6a7862f8c3d0892b283"
-dependencies = [
- "cfg-if",
- "cpufeatures 0.2.17",
- "digest 0.10.7",
 ]
 
 [[package]]
