@@ -29,8 +29,10 @@ Actions integration as an integration bypass actor.
    | `RELEASE_APP_CLIENT_ID` | Variable | App Client ID; used to mint installation tokens |
    | `RELEASE_APP_PRIVATE_KEY` | Secret | Entire generated PEM private key |
 
-Keep the private key in GitHub Secrets; do not paste it into chat, commit it, or
-reuse a personal access token. The release job requests a token for only its own
+Keep the private key only in the protected `release` environment, with no
+repository-level copy. The two non-secret variables may also be configured at
+repository scope. Do not paste the key into chat, commit it, or reuse a personal
+access token. The release job requests a token for only its own
 repository, with Contents write permission. The token action revokes it after use.
 
 Environment settings:
@@ -62,10 +64,13 @@ After both environments are configured:
    Replace `123456` with the numeric App ID. Do not grant this bypass to the `main`
    ruleset or the immutable-version-tag/deletion rulesets.
 
-Until this activation is complete, the existing publishing workflows keep using
-`GITHUB_TOKEN`, and major-tag creation/updates remain unrestricted by actor rules.
-Major-tag deletion and semantic-version-tag protection are already enabled.
-Do not enable the update restriction first: the current workflow token cannot bypass it.
+Activation completed on 16 October 2026 using App `openpgp-sign-kms-releases`
+(ID `5338261`). Both publishing workflows now use App installation tokens.
+The [action permission test](https://github.com/duncm/openpgp-sign-kms/actions/runs/38825066339)
+and [CLI permission test](https://github.com/duncm/openpgp-sign-kms-cli/actions/runs/38825069627)
+verified tag creation/force-update and draft release creation, asset upload, and
+editing. Version-tag rewrites and tag deletion were rejected. The temporary
+rules, tags, and draft releases were removed; existing releases were unchanged.
 
 The CLI currently publishes immutable version releases; the action also advances
 its major convenience tag. Both publishing jobs use the same App setup.
@@ -84,7 +89,8 @@ Secret scanning, push protection, and immutable releases remain enabled.
 
 Version tags (`v*.*.*`) can be created only by `duncm`, and cannot be updated or
 deleted. Major tags match `v[0-9]*`, excluding dots and prerelease hyphens; their
-deletion is blocked. The pending App bypass applies only to their creation/update.
+deletion is blocked. Only the release App can create or update major tags. Its
+bypass applies only to those two operations; all other protections remain active.
 
 ## References
 
