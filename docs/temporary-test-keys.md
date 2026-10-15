@@ -55,15 +55,16 @@ other eligible keys are still processed. AWS CLI automatic pagination scans all 
 cancellation. The daily workflow handles those cases, normally scheduling deletion
 within 24–48 hours of creation. An expiry tag does not itself trigger AWS deletion.
 
-## IAM change for review
+## Integration role policy
 
-**Prepared only; not applied.** Replace the `openpgp-sign-kms-integration` inline
-policy on role `openpgp-sign-kms-github-integration` after review:
+The `openpgp-sign-kms-integration` inline policy on role
+`openpgp-sign-kms-github-integration` was reviewed and applied on 16 October 2026.
+The files below document the current policy and its previous configuration:
 
-- [Proposed complete policy](iam/integration-role-policy.json)
+- [Current complete policy](iam/integration-role-policy.json)
 - [Previous policy snapshot](iam/integration-role-policy-before.json)
 
-The proposal targets account `889580843530`, region `ap-southeast-2`, and the two
+The policy targets account `889580843530`, region `ap-southeast-2`, and the two
 `duncm` repositories. Other deployments must substitute their account, region,
 repository names, and permanent-key protection list.
 
@@ -138,8 +139,9 @@ tags, other repositories, unsupported key types, multi-region keys, and non-seve
 deletion windows. These simulations cover the identity policy, not full live KMS
 resource-policy evaluation.
 
-Read-only sweeps against the test account found its two permanent keys and selected
-neither. Live creation/deletion validation remains pending policy review and application.
+Initial read-only sweeps against the test account found its two permanent keys and
+selected neither. The integration workflows validate creation, signing, and scheduling
+deletion with actual temporary keys. Daily cleanup also supports manual dry runs.
 
 ## AWS references
 
