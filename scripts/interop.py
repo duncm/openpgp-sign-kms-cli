@@ -50,6 +50,7 @@ def main():
                             source.write_bytes(data+b'changed');cmd(verify,ok=False);source.write_bytes(data)
                 if n==0:
                     cmd([SIGNER,'-s','-u',ARN,'-o',str(source),str(source)],ok=False)
+            env['OPENPGP_SIGN_KMS_GIT_METADATA']='auto'
             # Real Git invokes -bsau and requires SIG_CREATED on stderr.
             cmd(['git','init','-q'])
             for key,val in [('user.name','KMS Test'),('user.email','test@example.com'),('user.signingkey',ARN),('gpg.program',SIGNER)]:cmd(['git','config',key,val])

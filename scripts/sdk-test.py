@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Production SDK integration against a local KMS protocol server. No real AWS access."""
-import base64,http.server,json,os,pathlib,subprocess,tempfile,threading
+import base64,hashlib,http.server,json,os,pathlib,subprocess,tempfile,threading
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 CLI=str(ROOT/'target/debug/openpgp-sign-kms')
 VERSION=subprocess.check_output([CLI,'--version']).decode().split()[-1]
@@ -21,7 +21,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             result={'KeyId':ARN,'PublicKey':base64.b64encode(s.der).decode(),'KeySpec':s.spec,'KeyUsage':'SIGN_VERIFY','SigningAlgorithms':(['ED25519_SHA_512'] if s.spec.startswith('ECC') else ['RSASSA_PKCS1_V1_5_SHA_256','RSASSA_PKCS1_V1_5_SHA_384','RSASSA_PKCS1_V1_5_SHA_512'])}
         elif op=='Sign':
             s.attempts+=1
-            if s.attempts<=s.failures:
+            if s.denied:
+                status=400;result={'__type':'AccessDeniedException','message':'denied test'}
+            elif s.attempts<=s.failures:
                 status=503;result={'__type':'KMSInternalException','message':'retry test'}
             else:
                 assert data['KeyId']==ARN
@@ -52,23 +54,31 @@ def main():
    env=dict(os.environ,AWS_ACCESS_KEY_ID='test',AWS_SECRET_ACCESS_KEY='test',AWS_EC2_METADATA_DISABLED='true',AWS_ENDPOINT_URL_KMS=f'http://127.0.0.1:{server.server_port}')
    env.pop('AWS_SESSION_TOKEN',None)
    try:
-    for scenario in (['success','disabled','corrupt','retry','denied','bad-status','long-description']+(['sha384','sha512'] if spec=='RSA_2048' else [])):
-     server.calls=[];server.attempts=0;server.failures=2 if scenario=='retry' else 99 if scenario=='denied' else 0;server.corrupt=scenario=='corrupt';server.disabled=scenario=='disabled'
+    for scenario in (['success','disabled','corrupt','retry','exhausted','denied','bad-status','long-description','git-auto','git-unrecognized','git-off']+(['sha384','sha512'] if spec=='RSA_2048' else [])):
+     server.calls=[];server.attempts=0;server.failures=2 if scenario=='retry' else 99 if scenario=='exhausted' else 0;server.corrupt=scenario=='corrupt';server.disabled=scenario=='disabled';server.denied=scenario=='denied'
      server.algorithm='ED25519_SHA_512' if spec.startswith('ECC') else 'RSASSA_PKCS1_V1_5_SHA_'+(scenario[3:] if scenario.startswith('sha') else '256')
      output=root/'out';output.unlink(missing_ok=True)
      args=[CLI,'-bsau',ARN,'-o',str(output),'--description','sdk test ✓' if scenario!='long-description' else 'x'*2000]
      if scenario.startswith('sha'):args+=['--digest-algo',scenario]
      args+=['--status-fd', '99999' if scenario=='bad-status' else '2']
-     result=subprocess.run(args,input=b'sdk test\n',env=env,capture_output=True)
-     success=scenario in ['success','retry','sha384','sha512']
+     payload=b'sdk test\n'
+     description='sdk test ✓'
+     if scenario in ['git-auto','git-off']:
+      payload=('object '+'a'*40+'\ntype commit\ntag v1/test\ntagger Private identity\n\nPrivate message').encode()
+     if scenario.startswith('git-'):
+      args+=['--git-metadata', 'off' if scenario=='git-off' else 'auto']
+     if scenario=='git-auto':
+      description+='\ngit_type=tag payload_sha256='+hashlib.sha256(payload).hexdigest()+' target_id='+'a'*40+' target_type=commit tag=v1%2Ftest'
+     result=subprocess.run(args,input=payload,env=env,capture_output=True)
+     success=scenario in ['success','retry','sha384','sha512','git-auto','git-unrecognized','git-off']
      assert (result.returncode==0)==success,(scenario,result.stderr)
      assert output.exists()==success,(scenario,'output publication')
      assert (b'[GNUPG:] SIG_CREATED ' in result.stderr)==success
-     expected=3 if scenario in ['retry','denied'] else 0 if scenario in ['disabled','bad-status','long-description'] else 1
+     expected=3 if scenario in ['retry','exhausted'] else 0 if scenario in ['disabled','bad-status','long-description'] else 1
      assert server.attempts==expected,(scenario,server.attempts)
      for op,data,ua in server.calls:
       if op=='Sign':
-       assert ua=='openpgp-sign-kms/'+VERSION+' description/'+base64.urlsafe_b64encode('sdk test ✓'.encode()).decode().rstrip('='),ua
+       assert ua=='openpgp-sign-kms/'+VERSION+' description/'+base64.urlsafe_b64encode(description.encode()).decode().rstrip('='),ua
      if scenario=='success':
       # Refusal happens before any additional AWS operations.
       n=len(server.calls);again=subprocess.run(args,input=b'data',env=env,capture_output=True)

@@ -52,6 +52,7 @@ git tag -s v1.0.0 -m 'Signed release'
 git verify-commit HEAD
 ```
 
+Optional `OPENPGP_SIGN_KMS_GIT_METADATA=auto` adds commit/tag context to CloudTrail.
 Verification is delegated to GPG, using its existing keyring and trust settings.
 [Git and audit details](docs/git.md) · [Command reference](docs/cli.md)
 

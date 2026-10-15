@@ -19,6 +19,7 @@ input/output aliases and symlink output destinations are rejected.
 | `--batch`, `--no-tty` | Accepted; signing never prompts |
 | `--quiet`, `--verbose` | Accepted compatibility flags; errors remain visible |
 | `--status-fd N` | GPG status records on an inherited descriptor |
+| `--git-metadata off/auto` | Optional Git audit fields; default off |
 | `--description TEXT` | CloudTrail User-Agent annotation |
 | `--export` | Export a public certificate, requiring name and email |
 | `--export-name`, `--export-email`, `--export-comment` | Certificate identity |

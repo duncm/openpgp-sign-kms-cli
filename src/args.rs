@@ -1,5 +1,5 @@
 use anyhow::{Result, bail};
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use std::{ffi::OsString, path::PathBuf};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -8,6 +8,13 @@ pub enum Mode {
     Detached,
     Clear,
     Export,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, ValueEnum)]
+pub enum GitMetadata {
+    #[default]
+    Off,
+    Auto,
 }
 
 /// Sign OpenPGP messages using an AWS KMS key. Compatible with Git's GPG signer invocation.
@@ -46,6 +53,13 @@ pub struct Args {
     pub status_fd: Option<i32>,
     #[arg(long, env = "OPENPGP_SIGN_KMS_DESCRIPTION")]
     pub description: Option<String>,
+    #[arg(
+        long,
+        env = "OPENPGP_SIGN_KMS_GIT_METADATA",
+        value_enum,
+        default_value = "off"
+    )]
+    pub git_metadata: GitMetadata,
     #[arg(long)]
     pub export_name: Option<String>,
     #[arg(long)]

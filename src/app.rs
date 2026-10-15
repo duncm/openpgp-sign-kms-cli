@@ -1,5 +1,5 @@
 use crate::{
-    args::{Args, Mode},
+    args::{Args, GitMetadata, Mode},
     kms::user_agent,
     output::Output,
     pgp::{self, SignerAdapter},
@@ -22,7 +22,7 @@ pub fn run<R: crate::kms::RemoteSigner>(
         .as_deref()
         .context("--local-user requires a concrete KMS key ARN")?;
     crate::kms::region(arn)?;
-    let ua = user_agent(args.description.as_deref())?;
+    let mut ua = user_agent(args.description.as_deref())?;
     let output_path = args.output_path(mode);
     ensure!(
         !(output_path.is_none() && args.status_fd == Some(1)),
@@ -37,6 +37,12 @@ pub fn run<R: crate::kms::RemoteSigner>(
             Box::new(std::io::stdin())
         };
     let mut output = Output::prepare(output_path, args.input.as_deref(), args.yes)?;
+    if mode != Mode::Export && args.git_metadata == GitMetadata::Auto {
+        let (prepared, description) =
+            crate::git_metadata::prepare(input, args.description.as_deref())?;
+        input = prepared;
+        ua = user_agent(Some(&description))?;
+    }
     let (remote, material) = connect(arn, ua)?;
     let mut signer = SignerAdapter::new(material, remote)?;
     let hash = match args
