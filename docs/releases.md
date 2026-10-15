@@ -8,7 +8,7 @@
 - **Maintenance:** weekly/manual dependency checks and external links.
 
 External actions are pinned by SHA. Dependabot updates dependencies and action
-pins through ordinary pull requests. Set `CI / required` as a required check.
+pins through ordinary pull requests. Set the CI job named `required` as a required check.
 Protect `main` from direct updates and limit version-tag creation to maintainers.
 
 ## Integration environment
@@ -36,8 +36,10 @@ bounded polling window. It fails if the expected event never appears.
 3. Create and push the matching `vVERSION` tag. Prerelease versions include a suffix.
 4. The release workflow tests candidates and publishes the same verified artifacts.
 
-Existing published releases are never overwritten. A failed run leaves no public
-release; inspect logs and rerun the workflow after addressing external failures.
+Existing published releases are never overwritten. A failed build or integration run publishes nothing. If an upload fails after
+GitHub creates a draft, inspect it and delete only that incomplete draft before
+retrying. Never delete or replace a published release. Rerun after resolving
+external failures.
 For code changes, make a new version/tag rather than moving a versioned tag.
 
 CLI archives are built on Ubuntu 22.04 for x86_64 and ARM64. The source bundle
