@@ -47,8 +47,8 @@ tags receive releases.
 ## Release credentials
 
 The publishing job uses the protected `release` environment and a repository-scoped
-GitHub App token. Configure the [release App](release-app.md) before merging the
-App-authentication change. The built-in workflow token remains read-only in that
+GitHub App token. The [release App guide](release-app.md) documents credentials
+and the active tag restrictions. The built-in workflow token remains read-only in that
 job; attestation continues to use its existing narrowly scoped permissions.
 
 ## Publish
