@@ -53,8 +53,16 @@ jobs:
     permissions:
       contents: read
       id-token: write
+  google-integration:
+    needs: build
+    uses: ./.github/workflows/gcp-integration.yml
+    with:
+      candidate: true
+    permissions:
+      contents: read
+      id-token: write
   attest:
-    needs: integration
+    needs: [integration, google-integration]
     runs-on: ubuntu-24.04
     permissions:
       contents: read

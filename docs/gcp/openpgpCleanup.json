@@ -1,0 +1,12 @@
+{
+  "title": "openpgpCleanup",
+  "description": "OpenPGP dedicated integration project; see Google setup guide",
+  "stage": "GA",
+  "includedPermissions": [
+    "cloudkms.cryptoKeys.get",
+    "cloudkms.cryptoKeyVersions.get",
+    "cloudkms.cryptoKeyVersions.list",
+    "cloudkms.cryptoKeyVersions.update",
+    "cloudkms.cryptoKeyVersions.destroy"
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "name": "projects/123456789012/policies/gcp.restrictServiceUsage",
+  "spec": {
+    "rules": [
+      {
+        "values": {
+          "allowedValues": [
+            "cloudkms.googleapis.com"
+          ]
+        }
+      }
+    ]
+  }
+}

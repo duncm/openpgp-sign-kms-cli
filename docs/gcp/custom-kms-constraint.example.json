@@ -1,0 +1,14 @@
+{
+  "name": "organizations/123456789012/customConstraints/custom.openpgpIntegrationKeys",
+  "resourceTypes": [
+    "cloudkms.googleapis.com/CryptoKey"
+  ],
+  "methodTypes": [
+    "CREATE",
+    "UPDATE"
+  ],
+  "condition": "resource.purpose == 'ASYMMETRIC_SIGN' && resource.versionTemplate.algorithm in ['RSA_SIGN_PKCS1_2048_SHA256', 'RSA_SIGN_PKCS1_3072_SHA256', 'RSA_SIGN_PKCS1_4096_SHA256', 'RSA_SIGN_PKCS1_4096_SHA512', 'EC_SIGN_ED25519'] && resource.versionTemplate.protectionLevel in ['SOFTWARE', 'HSM'] && (resource.versionTemplate.algorithm != 'EC_SIGN_ED25519' || resource.versionTemplate.protectionLevel == 'SOFTWARE') && resource.destroyScheduledDuration == duration('86400s') && !resource.importOnly",
+  "actionType": "ALLOW",
+  "displayName": "Only approved OpenPGP integration keys",
+  "description": "Dedicated test project: generated RSA/Ed25519 signing keys and a 24-hour destruction delay."
+}

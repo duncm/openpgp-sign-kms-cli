@@ -17,9 +17,10 @@ def collect(metadata, project):
             continue
         files = sorted(
             p for p in directory.rglob('*')
-            if p.is_file() and p.name.upper().startswith(
+            if p.is_file() and (p.name.upper().startswith(
                 ('LICENSE', 'LICENCE', 'COPYING', 'NOTICE', 'COPYRIGHT', 'AUTHORS')
-            )
+            ) or any(part.upper() in ('LICENSES', 'LICENCES')
+                     for part in p.relative_to(directory).parts[:-1]))
         )
         supplement = project / 'licenses' / f"{package['name']}-{package['version']}.txt"
         if supplement.is_file():

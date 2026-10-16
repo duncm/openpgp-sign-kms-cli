@@ -1,0 +1,69 @@
+{
+  "displayName": "OpenPGP integration signing and administration boundary",
+  "rules": [
+    {
+      "description": "Unexpected identities cannot sign even if granted a signer role",
+      "denyRule": {
+        "deniedPrincipals": [
+          "principalSet://goog/public:all"
+        ],
+        "exceptionPrincipals": [
+          "principal://iam.googleapis.com/projects/-/serviceAccounts/openpgp-cli-software@replace-with-project-id.iam.gserviceaccount.com",
+          "principal://iam.googleapis.com/projects/-/serviceAccounts/openpgp-cli-hsm@replace-with-project-id.iam.gserviceaccount.com",
+          "principal://iam.googleapis.com/projects/-/serviceAccounts/openpgp-action-software@replace-with-project-id.iam.gserviceaccount.com",
+          "principal://iam.googleapis.com/projects/-/serviceAccounts/openpgp-action-hsm@replace-with-project-id.iam.gserviceaccount.com",
+          "principalSet://goog/group/gcp-admins@example.com"
+        ],
+        "deniedPermissions": [
+          "cloudkms.googleapis.com/cryptoKeyVersions.useToSign"
+        ]
+      }
+    },
+    {
+      "description": "Workflow accounts cannot administer IAM, keys, federation or services",
+      "denyRule": {
+        "deniedPrincipals": [
+          "principal://iam.googleapis.com/projects/-/serviceAccounts/openpgp-cli-software@replace-with-project-id.iam.gserviceaccount.com",
+          "principal://iam.googleapis.com/projects/-/serviceAccounts/openpgp-cli-hsm@replace-with-project-id.iam.gserviceaccount.com",
+          "principal://iam.googleapis.com/projects/-/serviceAccounts/openpgp-action-software@replace-with-project-id.iam.gserviceaccount.com",
+          "principal://iam.googleapis.com/projects/-/serviceAccounts/openpgp-action-hsm@replace-with-project-id.iam.gserviceaccount.com"
+        ],
+        "deniedPermissions": [
+          "cloudkms.googleapis.com/cryptoKeys.create",
+          "cloudkms.googleapis.com/cryptoKeys.update",
+          "cloudkms.googleapis.com/cryptoKeys.delete",
+          "cloudkms.googleapis.com/cryptoKeys.setIamPolicy",
+          "cloudkms.googleapis.com/keyRings.create",
+          "cloudkms.googleapis.com/keyRings.delete",
+          "cloudkms.googleapis.com/keyRings.setIamPolicy",
+          "cloudkms.googleapis.com/cryptoKeyVersions.restore",
+          "cloudkms.googleapis.com/cryptoKeyVersions.trustedImportExport",
+          "cloudkms.googleapis.com/importJobs.create",
+          "cloudkms.googleapis.com/cryptoKeyVersions.useToDecrypt",
+          "cloudkms.googleapis.com/cryptoKeyVersions.useToEncrypt",
+          "cloudkms.googleapis.com/cryptoKeyVersions.useToVerify",
+          "cloudresourcemanager.googleapis.com/projects.setIamPolicy",
+          "cloudresourcemanager.googleapis.com/projects.delete",
+          "cloudresourcemanager.googleapis.com/projects.move",
+          "iam.googleapis.com/roles.create",
+          "iam.googleapis.com/roles.update",
+          "iam.googleapis.com/roles.delete",
+          "iam.googleapis.com/roles.undelete",
+          "iam.googleapis.com/serviceAccounts.setIamPolicy",
+          "iam.googleapis.com/serviceAccounts.create",
+          "iam.googleapis.com/serviceAccounts.getAccessToken",
+          "iam.googleapis.com/serviceAccounts.getOpenIdToken",
+          "iam.googleapis.com/serviceAccounts.signBlob",
+          "iam.googleapis.com/serviceAccounts.signJwt",
+          "iam.googleapis.com/serviceAccounts.actAs",
+          "iam.googleapis.com/workloadIdentityPools.*",
+          "iam.googleapis.com/workloadIdentityPoolProviders.*",
+          "orgpolicy.googleapis.com/policies.*",
+          "orgpolicy.googleapis.com/policy.set",
+          "serviceusage.googleapis.com/services.enable",
+          "serviceusage.googleapis.com/services.disable"
+        ]
+      }
+    }
+  ]
+}

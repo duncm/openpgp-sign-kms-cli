@@ -1,6 +1,6 @@
 use crate::{
     args::Mode,
-    kms::{Kind, Material, RemoteSigner},
+    provider::{Kind, Material, RemoteSigner},
 };
 use anyhow::{Result, ensure};
 use openssl::{
@@ -34,9 +34,11 @@ pub struct SignerAdapter<R: RemoteSigner> {
     remote: R,
     public: PKey<Public>,
     kind: Kind,
+    hashes: Vec<HashAlgorithm>,
 }
 impl<R: RemoteSigner> SignerAdapter<R> {
     pub fn new(material: Material, remote: R) -> Result<Self> {
+        ensure!(!material.hashes.is_empty(), "key has no supported digests");
         let public = PKey::public_key_from_der(&material.der)?;
         let key = match material.kind {
             Kind::Rsa(bits) => {
@@ -61,14 +63,11 @@ impl<R: RemoteSigner> SignerAdapter<R> {
             remote,
             public,
             kind: material.kind,
+            hashes: material.hashes,
         })
     }
     pub fn default_hash(&self) -> HashAlgorithm {
-        if self.kind == Kind::Ed25519 {
-            HashAlgorithm::SHA512
-        } else {
-            HashAlgorithm::SHA256
-        }
+        self.hashes[0]
     }
 }
 impl<R: RemoteSigner> CryptoSigner for SignerAdapter<R> {
@@ -76,18 +75,13 @@ impl<R: RemoteSigner> CryptoSigner for SignerAdapter<R> {
         &self.key
     }
     fn acceptable_hashes(&self) -> &[HashAlgorithm] {
-        if self.kind == Kind::Ed25519 {
-            &[HashAlgorithm::SHA512]
-        } else {
-            &[
-                HashAlgorithm::SHA256,
-                HashAlgorithm::SHA384,
-                HashAlgorithm::SHA512,
-            ]
-        }
+        &self.hashes
     }
     fn sign(&mut self, hash: HashAlgorithm, digest: &[u8]) -> pgp::Result<mpi::Signature> {
-        crate::kms::algorithm(self.kind, hash)?;
+        ensure!(
+            self.hashes.contains(&hash),
+            "digest unsupported by this key version"
+        );
         ensure!(
             digest.len() == hash.digest_size()?,
             "invalid OpenPGP digest length"

@@ -1,0 +1,15 @@
+{
+  "title": "openpgpIntegration",
+  "description": "OpenPGP dedicated integration project; see Google setup guide",
+  "stage": "GA",
+  "includedPermissions": [
+    "cloudkms.cryptoKeys.get",
+    "cloudkms.cryptoKeyVersions.get",
+    "cloudkms.cryptoKeyVersions.list",
+    "cloudkms.cryptoKeyVersions.update",
+    "cloudkms.cryptoKeyVersions.destroy",
+    "cloudkms.cryptoKeyVersions.create",
+    "cloudkms.cryptoKeyVersions.viewPublicKey",
+    "cloudkms.cryptoKeyVersions.useToSign"
+  ]
+}

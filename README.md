@@ -1,6 +1,6 @@
-# OpenPGP Sign with AWS KMS
+# OpenPGP Sign with Cloud KMS
 
-Create GPG-compatible signatures without exporting your private key from AWS KMS.
+Create GPG-compatible signatures without exporting your private key from AWS KMS or Google Cloud KMS.
 Supports RSA and Ed25519 on Linux x86_64 and ARM64 (glibc 2.35+, including Ubuntu 22.04/24.04).
 
 ## Get started
@@ -29,6 +29,24 @@ gpg --verify artifact.tar.gz.sig artifact.tar.gz
 Replace the ARN, identity, and input filename with your values.
 A valid signature does not automatically establish trust in its identity.
 
+## Google Cloud quick start
+
+Use Application Default Credentials and an enabled, explicit key version.
+[Create a key and grant access](docs/google-cloud.md) first.
+
+```sh
+gcloud auth application-default login
+export KEY='projects/PROJECT/locations/us-central1/keyRings/RING/cryptoKeys/KEY/cryptoKeyVersions/1'
+openpgp-sign-kms --export -u "$KEY" --armor \
+  --export-name 'Release signer' --export-email 'release@example.com' -o google-public.asc
+openpgp-sign-kms -b -u "$KEY" artifact.tar.gz
+gpg --import google-public.asc
+gpg --verify artifact.tar.gz.sig artifact.tar.gz
+```
+
+Replace `PROJECT`, `RING`, `KEY`, the version, and input filename. The same Git setup
+below works with `user.signingkey` set to `$KEY`.
+
 ## Choose an output
 
 | Command | Output |
@@ -52,7 +70,7 @@ git tag -s v1.0.0 -m 'Signed release'
 git verify-commit HEAD
 ```
 
-Optional `OPENPGP_SIGN_KMS_GIT_METADATA=auto` adds commit/tag context to CloudTrail.
+Optional `OPENPGP_SIGN_KMS_GIT_METADATA=auto` adds commit/tag context to the provider’s audit logs.
 Verification is delegated to GPG, using its existing keyring and trust settings.
 [Git and audit details](docs/git.md) · [Command reference](docs/cli.md)
 
@@ -62,7 +80,8 @@ Use the separate [OpenPGP signing action](https://github.com/duncm/openpgp-sign-
 
 ## Further reading
 
-- [AWS setup](docs/aws.md)
+- [AWS setup](docs/aws.md) · [Google Cloud setup](docs/google-cloud.md)
+- [Dedicated Google integration project](docs/google-integration.md)
 - [Compatibility and certificate identity](docs/cli.md)
 - [Build and test](docs/contributing.md)
 - [Release procedures](docs/releases.md)

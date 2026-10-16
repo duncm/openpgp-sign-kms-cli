@@ -20,12 +20,22 @@ it is never included in release archives or selected by the production CLI.
 ## Architecture
 
 - `args`: GPG argument compatibility and verification delegation.
-- `kms`: AWS metadata, algorithm mapping, requests and audit headers.
+- `provider`: key identifiers, shared material/capabilities, audit headers and dispatch.
+- `kms`, `gcp`: provider metadata, algorithm mapping and remote requests.
 - `pgp`: external signer adapter, local verification and OpenPGP serialization.
 - `app`, `output`, `status`: orchestration, staged output and machine status.
 
 Run `cargo fmt` before submitting. CI covers Ubuntu 22.04/24.04 on x86_64/ARM64.
-PR tests require neither AWS credentials nor production keys.
+PR tests require no AWS/Google credentials or cloud access.
+
+`examples/gcp-protocol-signer.rs` is a second test-only executable, exercising the
+real Google SDK against the local HTTP server in `scripts/gcp-sdk-test.py`. Its
+anonymous credentials and endpoint are never selected by the production CLI.
+Google protocol tests include all five algorithms, metadata/checksum rejection,
+HSM response variants, audit headers, retries and timeouts.
+
+Google infrastructure helpers use Python’s standard library and the gcloud access
+token established by OIDC. Unit tests fake the API; they do not contact Google.
 
 ## Commit signatures
 

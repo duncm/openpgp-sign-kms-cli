@@ -1,0 +1,16 @@
+{
+  "name": "projects/123456789012/locations/global/workloadIdentityPools/openpgp-github/providers/software",
+  "oidc": {
+    "issuerUri": "https://token.actions.githubusercontent.com",
+    "allowedAudiences": [
+      "https://iam.googleapis.com/projects/123456789012/locations/global/workloadIdentityPools/openpgp-github/providers/software"
+    ]
+  },
+  "attributeMapping": {
+    "google.subject": "assertion.sub",
+    "attribute.repository_id": "assertion.repository_id",
+    "attribute.environment": "assertion.environment",
+    "attribute.workload": "assertion.repository_id+\"_\"+assertion.environment"
+  },
+  "attributeCondition": "assertion.repository_owner_id == '716768' && ((assertion.repository_id == '1421282717' && assertion.repository == 'duncm/openpgp-sign-kms-cli') || (assertion.repository_id == '1421282799' && assertion.repository == 'duncm/openpgp-sign-kms')) && assertion.environment == 'gcp-integration' && ((assertion.event_name == 'workflow_dispatch' && assertion.ref == 'refs/heads/main' && (assertion.workflow_ref == assertion.repository + '/.github/workflows/gcp-integration.yml@refs/heads/main' || assertion.workflow_ref == assertion.repository + '/.github/workflows/gcp-cleanup.yml@refs/heads/main')) || (assertion.event_name == 'schedule' && assertion.ref == 'refs/heads/main' && assertion.workflow_ref == assertion.repository + '/.github/workflows/gcp-cleanup.yml@refs/heads/main') || (assertion.event_name == 'push' && assertion.ref.matches('^refs/tags/v[0-9]+[.][0-9]+[.][0-9]+(-[0-9A-Za-z.-]+)?$') && assertion.workflow_ref == assertion.repository + '/.github/workflows/release.yml@' + assertion.ref && 'job_workflow_ref' in assertion && assertion.job_workflow_ref == assertion.repository + '/.github/workflows/gcp-integration.yml@' + assertion.ref))"
+}

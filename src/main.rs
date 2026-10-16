@@ -30,7 +30,7 @@ fn main() {
         }
     };
     if let Err(e) =
-        openpgp_sign_kms::app::run(args, &mut status, openpgp_sign_kms::kms::Kms::connect)
+        openpgp_sign_kms::app::run(args, &mut status, openpgp_sign_kms::provider::connect)
     {
         eprintln!("openpgp-sign-kms: {e:#}");
         let _ = status.emit("FAILURE sign 1");

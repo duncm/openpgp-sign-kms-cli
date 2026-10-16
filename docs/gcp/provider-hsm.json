@@ -1,0 +1,16 @@
+{
+  "name": "projects/123456789012/locations/global/workloadIdentityPools/openpgp-github/providers/hsm-smoke",
+  "oidc": {
+    "issuerUri": "https://token.actions.githubusercontent.com",
+    "allowedAudiences": [
+      "https://iam.googleapis.com/projects/123456789012/locations/global/workloadIdentityPools/openpgp-github/providers/hsm-smoke"
+    ]
+  },
+  "attributeMapping": {
+    "google.subject": "assertion.sub",
+    "attribute.repository_id": "assertion.repository_id",
+    "attribute.environment": "assertion.environment",
+    "attribute.workload": "assertion.repository_id+\"_\"+assertion.environment"
+  },
+  "attributeCondition": "assertion.repository_owner_id == '716768' && ((assertion.repository_id == '1421282717' && assertion.repository == 'duncm/openpgp-sign-kms-cli') || (assertion.repository_id == '1421282799' && assertion.repository == 'duncm/openpgp-sign-kms')) && assertion.environment == 'gcp-hsm' && (assertion.event_name == 'workflow_dispatch' && assertion.ref == 'refs/heads/main' && assertion.workflow_ref == assertion.repository + '/.github/workflows/gcp-hsm.yml@refs/heads/main')"
+}
