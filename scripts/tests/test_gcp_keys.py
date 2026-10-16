@@ -20,7 +20,7 @@ class Fake:
         if method == 'POST' and resource.endswith('/cryptoKeyVersions'):
             parent = resource.removesuffix('/cryptoKeyVersions')
             name = resource + '/' + str(len(self.items) + 1)
-            item = dict(name=name, state='ENABLED', createTime='2020-01-01T00:00:00Z', **self.parents[parent]['versionTemplate'])
+            item = dict(name=name, state='ENABLED', createTime='2020-01-01T00:00:00.123456789Z', **self.parents[parent]['versionTemplate'])
             self.items[name] = item
             return dict(item)
         name = resource.split('?')[0].removesuffix(':destroy')
@@ -102,6 +102,29 @@ class KeyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             with self.assertRaises(ValueError): self.keys.create('hsm', Path(directory)/'state', ['ed25519'])
         self.assertFalse(self.api.calls)
+    def test_protobuf_nanosecond_timestamps(self):
+        base = gcp.dt.datetime(2026,10,16,9,52,8,tzinfo=gcp.dt.timezone.utc).timestamp()
+        for suffix,fraction in [('Z',0),('.1Z',0.1),('.123Z',0.123),('.123456Z',0.123456),('.123456789Z',0.123456)]:
+            self.assertEqual(gcp.timestamp('2026-10-16T09:52:08'+suffix),base+fraction)
+        self.assertEqual(gcp.timestamp('2026-10-16T10:52:08.123456789+01:00'),base+0.123456)
+        for bad in ['2026-10-16T09:52:08','2026-10-16T09:52:08.Z','2026-10-16T09:52:08.1234567890Z','2026-10-16T09:52:08+01:99','not-a-date']:
+            with self.assertRaises(ValueError): gcp.timestamp(bad)
+    def test_targeted_recovery_of_recent_version_preserves_other_versions(self):
+        records = self.create()
+        for value in self.api.items.values():
+            value['createTime'] = gcp.dt.datetime.now(gcp.dt.timezone.utc).isoformat()
+        names = [records[0]['name']]
+        self.keys.recover(names,True)
+        self.assertTrue(all(v['state']=='ENABLED' for v in self.api.items.values()))
+        self.keys.recover(names,False)
+        self.assertEqual(self.api.items[names[0]]['state'],'DESTROY_SCHEDULED')
+        self.assertEqual(self.api.items[records[1]['name']]['state'],'ENABLED')
+    def test_recovery_validates_entire_selection_before_changes(self):
+        records=self.create(); self.api.calls.clear()
+        with self.assertRaises(ValueError): self.keys.recover([records[0]['name'],records[1]['name'].replace('test-project','other-project')],False)
+        self.assertFalse(self.api.calls)
+        for invalid in ['name',{},[42]]:
+            with self.assertRaises(ValueError):self.keys.recover(invalid,False)
     def test_wrong_region_or_repository_rejected(self):
         with self.assertRaises(ValueError): gcp.Keys(self.api,'test-project','us-west1','duncm/openpgp-sign-kms')
         with self.assertRaises(KeyError): gcp.Keys(self.api,'test-project','us-central1','attacker/repo')

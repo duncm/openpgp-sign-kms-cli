@@ -233,8 +233,15 @@ older than 24 hours. A run with no key creation adds no active-version rental.
 Destroyed metadata is retained, but is not billed as active key material.
 [Pricing](https://cloud.google.com/kms/pricing)
 
-Manual cleanup defaults to dry-run. Sweepers process software and HSM containers for
-their own repository only. Software accounts have cleanup-only access to HSM keys.
+Manual cleanup defaults to dry-run. For a failed job that left recent versions,
+provide `recover_versions` as a JSON array of their exact resource names when
+dispatching `gcp-cleanup.yml`. Read them from the job's uploaded version journal.
+Review with `dry_run=true`, then use `dry_run=false` for that same selection.
+Only explicitly selected versions bypass the 24-hour threshold; the normal sweeper
+still requires expiry. Every selected version must pass the same fixed parent-key
+allowlist and metadata checks. No additional IAM permissions are needed.
+
+Sweepers process software and HSM containers for their own repository only. Software accounts have cleanup-only access to HSM keys.
 Failures remain visible and do not stop attempts to clean up other eligible versions.
 
 ## Recovery and teardown
