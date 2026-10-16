@@ -60,7 +60,6 @@
           "iam.googleapis.com/workloadIdentityPoolProviders.*",
           "orgpolicy.googleapis.com/policies.*",
           "orgpolicy.googleapis.com/policy.set",
-          "orgpolicy.googleapis.com/customConstraints.*",
           "serviceusage.googleapis.com/services.enable",
           "serviceusage.googleapis.com/services.disable"
         ]

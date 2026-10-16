@@ -25,6 +25,14 @@ ceiling on the integration identities. Do not grant them roles in other projects
 VPC Service Controls and Principal Access Boundaries are deferred; this setup is not
 a network perimeter. Administrators able to change these policies remain trusted.
 
+Deny permissions must be valid for the attachment resource as well as supported by
+IAM deny. Organization-level custom constraint definitions are outside this project's
+boundary: `orgpolicy.googleapis.com/customConstraints.*` cannot appear in this policy.
+Workflow accounts receive no organization-level grants. The project deny still covers
+project policy changes through `orgpolicy.googleapis.com/policies.*` and
+`orgpolicy.googleapis.com/policy.set`; it does not replace the custom KMS constraint
+or its project-scoped enforcement.
+
 Sources: [IAM deny](https://docs.cloud.google.com/iam/docs/deny-overview),
 [supported deny permissions](https://docs.cloud.google.com/iam/docs/deny-permissions-support),
 [domain-restricted sharing](https://docs.cloud.google.com/organization-policy/restrict-domains),

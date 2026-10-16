@@ -64,6 +64,22 @@ class ProjectTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError,'pool/provider ID'):
                     project.render(config,out)
                 self.assertFalse(out.exists())
+    def test_project_deny_excludes_organization_only_constraints(self):
+        config=json.loads((ROOT/'docs/gcp/project.example.json').read_text())
+        with tempfile.TemporaryDirectory() as tmp:
+            out=Path(tmp);project.render(config,out)
+            policy=json.loads((out/'deny-policy.json').read_text())
+            permissions={p for rule in policy['rules'] for p in rule['denyRule']['deniedPermissions']}
+            self.assertIn('cloudkms.googleapis.com/cryptoKeyVersions.useToSign',permissions)
+            self.assertIn('orgpolicy.googleapis.com/policies.*',permissions)
+            self.assertIn('orgpolicy.googleapis.com/policy.set',permissions)
+            self.assertFalse(any(p.startswith('orgpolicy.googleapis.com/customConstraints.') for p in permissions))
+            # The organization-level constraint definition and project enforcement remain intact.
+            definition=json.loads((out/'custom-kms-constraint.json').read_text())
+            enforcement=json.loads((out/'policy-custom.openpgpIntegrationKeys.json').read_text())
+            self.assertTrue(definition['name'].startswith('organizations/'+config['organization_id']+'/customConstraints/'))
+            self.assertTrue(enforcement['name'].startswith('projects/'+config['project_number']+'/policies/'))
+            self.assertEqual(enforcement['spec']['rules'],[{'enforce':True}])
     def test_reject_injection(self):
         config=json.loads((ROOT/'docs/gcp/project.example.json').read_text())
         config['organization_id']='123; touch bad'
