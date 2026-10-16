@@ -113,7 +113,7 @@ pub fn prepare(
     mut input: Box<dyn Read>,
     description: Option<&str>,
 ) -> Result<(Box<dyn Read>, String)> {
-    crate::kms::user_agent(description)?;
+    crate::provider::user_agent(description)?;
     let mut prefix = Vec::new();
     input
         .by_ref()
@@ -147,11 +147,11 @@ pub fn prepare(
         metadata.kind,
         hex::encode(hash.finalize())
     ));
-    crate::kms::user_agent(Some(&description))
+    crate::provider::user_agent(Some(&description))
         .context("explicit description leaves no room for Git payload digest; shorten it or disable Git metadata")?;
     for field in metadata.fields {
         let candidate = format!("{description} {field}");
-        if crate::kms::user_agent(Some(&candidate)).is_ok() {
+        if crate::provider::user_agent(Some(&candidate)).is_ok() {
             description = candidate;
         }
     }
@@ -225,7 +225,7 @@ mod tests {
         assert!(result.starts_with(&"x".repeat(600)));
         assert!(result.contains("payload_sha256="));
         assert!(result.matches("parent=").count() < 100);
-        assert!(crate::kms::user_agent(Some(&result)).unwrap().len() <= 1024);
+        assert!(crate::provider::user_agent(Some(&result)).unwrap().len() <= 1024);
         assert!(enrich(input, Some(&"x".repeat(730))).is_err());
     }
     #[test]

@@ -90,3 +90,24 @@ Its `v0.0.0-rehearsal-invalid` tag is retained as a test record and has no relea
 Create release tags with `git tag -s vVERSION -m 'Release VERSION'` and verify
 with `git verify-tag vVERSION` before pushing. Contributor commits must also be
 GPG signed as described in the contributor guide.
+
+## Google integration gate
+
+Configure the dedicated project and both Google environments using the
+[Google integration guide](google-integration.md) before releasing this feature.
+Release publication now requires **both** AWS and Google software integration.
+The Google jobs consume the same candidate archives as AWS jobs; publication does
+not rebuild them. Manual HSM smoke tests are optional and do not gate publication.
+
+Run the software and cleanup workflows on both architectures, then rehearse a CLI
+prerelease. Publish the tested CLI release before updating the action pin/checksums.
+The action feature branch must remain a draft until that pin is updated; its existing
+0.1.2 CLI pin has no Google backend. Rehearse the action release after updating it.
+Prereleases must leave stable major tags unchanged.
+
+No live Google setup, integration, guardrail probe, or prerelease run has been
+recorded yet. The owner will execute the reviewed gcloud setup commands.
+
+The repository Actions allowlists include the exact pinned `google-github-actions/auth`
+and `google-github-actions/setup-gcloud` commits. When updating either pin, review
+and update its allowlist entry too; arbitrary Google actions/versions remain blocked.

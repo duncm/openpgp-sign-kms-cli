@@ -1,8 +1,8 @@
 use anyhow::Result;
 use openpgp_sign_kms::{
     args::Mode,
-    kms::{Kind, Material, RemoteSigner},
     pgp::SignerAdapter,
+    provider::{Kind, Material, RemoteSigner},
 };
 use openssl::{
     md::Md,
@@ -58,6 +58,15 @@ fn signer(kind: Kind, corrupt: bool, fail: bool) -> (SignerAdapter<Remote>, Arc<
         der: key.public_key_to_der().unwrap(),
         created: std::time::UNIX_EPOCH + std::time::Duration::from_secs(1700000000),
         kind,
+        hashes: if kind == Kind::Ed25519 {
+            vec![HashAlgorithm::SHA512]
+        } else {
+            vec![
+                HashAlgorithm::SHA256,
+                HashAlgorithm::SHA384,
+                HashAlgorithm::SHA512,
+            ]
+        },
     };
     let calls = Arc::new(AtomicUsize::new(0));
     (
@@ -120,6 +129,7 @@ fn declared_key_size_checked() {
         der: key.public_key_to_der().unwrap(),
         created: std::time::SystemTime::now(),
         kind: Kind::Rsa(4096),
+        hashes: vec![HashAlgorithm::SHA256],
     };
     assert!(
         SignerAdapter::new(

@@ -60,3 +60,11 @@ Export and verification do not enrich descriptions.
 Recognition is a heuristic, not proof that Git invoked the command. The payload
 digest is **not the final signed Git object ID**. No repository, branch, checkout
 ID, or `HEAD` is inferred. Post-signing correlation remains outside this tool.
+
+## Google Cloud audit records
+
+The same Git invocation and opt-in metadata work with an explicit Google key-version
+resource name as `user.signingkey`. Descriptions appear in Cloud Audit Logs under
+`protoPayload.requestMetadata.callerSuppliedUserAgent`; enable KMS DATA_READ logging.
+Encoding, privacy, size limits, payload hashing and caller-trust limitations are
+unchanged. [Google setup and audit details](google-cloud.md#integrity-retries-and-audit-descriptions)

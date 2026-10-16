@@ -1,8 +1,8 @@
 use crate::{
     args::{Args, GitMetadata, Mode},
-    kms::user_agent,
     output::Output,
     pgp::{self, SignerAdapter},
+    provider::user_agent,
     status::Status,
 };
 use anyhow::{Context, Result, ensure};
@@ -11,17 +11,17 @@ use std::{
     io::Read,
     time::{SystemTime, UNIX_EPOCH},
 };
-pub fn run<R: crate::kms::RemoteSigner>(
+pub fn run<R: crate::provider::RemoteSigner>(
     args: Args,
     status: &mut Status,
-    connect: impl FnOnce(&str, String) -> Result<(R, crate::kms::Material)>,
+    connect: impl FnOnce(&str, String) -> Result<(R, crate::provider::Material)>,
 ) -> Result<()> {
     let mode = args.mode()?;
     let arn = args
         .key
         .as_deref()
-        .context("--local-user requires a concrete KMS key ARN")?;
-    crate::kms::region(arn)?;
+        .context("--local-user requires a concrete cloud key identifier")?;
+    crate::provider::identify(arn)?;
     let mut ua = user_agent(args.description.as_deref())?;
     let output_path = args.output_path(mode);
     ensure!(

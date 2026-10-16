@@ -1,0 +1,14 @@
+{
+  "name": "projects/123456789012/policies/iam.workloadIdentityPoolProviders",
+  "spec": {
+    "rules": [
+      {
+        "values": {
+          "allowedValues": [
+            "https://token.actions.githubusercontent.com"
+          ]
+        }
+      }
+    ]
+  }
+}

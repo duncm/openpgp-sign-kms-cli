@@ -1,0 +1,67 @@
+name: Google HSM smoke
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: gcp-hsm-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  test:
+    permissions:
+      contents: read
+      id-token: write
+    environment: gcp-hsm
+    timeout-minutes: 60
+    runs-on: ubuntu-22.04
+    env:
+      GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      GCP_LOCATION: us-central1
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - name: Trusted source and configuration
+        run: |
+          git merge-base --is-ancestor HEAD origin/main
+          test -n "$GCP_PROJECT_ID"
+      - name: Build CLI
+        run: |
+          sudo apt-get update && sudo apt-get install -y build-essential pkg-config clang libclang-dev perl
+          cargo build --release --locked
+          mkdir -p dist/test
+          cp target/release/openpgp-sign-kms dist/test/
+      - name: Authenticate with Google OIDC
+        id: credentials
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
+      - name: Check runtime permissions
+        run: python3 scripts/gcp-check-permissions.py hsm
+      - name: Create temporary versions
+        id: keys
+        run: python3 scripts/gcp-test-keys.py create --state "$RUNNER_TEMP/gcp-versions.jsonl" --protection hsm
+      - name: Sign, verify and check audit logs
+        run: python3 scripts/gcp-smoke.py "$PWD/dist/test/openpgp-sign-kms"
+      - name: Refresh cleanup credentials
+        if: "${{ always() && steps.credentials.outcome == 'success' && steps.keys.outcome != 'skipped' }}"
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+      - name: Destroy temporary versions
+        if: ${{ always() && steps.credentials.outcome == 'success' && steps.keys.outcome != 'skipped' }}
+        timeout-minutes: 15
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/gcp-test-keys.py cleanup --state "$RUNNER_TEMP/gcp-versions.jsonl" 2>&1 | tee "$RUNNER_TEMP/gcp-cleanup.log"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: gcp-cleanup-${{ runner.arch }}
+          path: ${{ runner.temp }}/gcp-cleanup.log

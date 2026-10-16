@@ -58,3 +58,10 @@ command, so callers must always check the exit status.
 
 This executable does not provide encryption, keyring management, local private-key
 signing, fingerprint lookup, or arbitrary GPG command compatibility.
+
+## Google provider
+
+`--local-user` also accepts an explicit Google CryptoKeyVersion resource name.
+Google versions fix the digest algorithm; incompatible `--digest-algo` values fail.
+Identity uses the version creation time, not its parent key creation time.
+See [Google algorithms, credentials and identity](google-cloud.md).

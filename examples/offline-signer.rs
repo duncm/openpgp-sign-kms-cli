@@ -3,7 +3,7 @@ use anyhow::Result;
 use clap::Parser;
 use openpgp_sign_kms::{
     args::Args,
-    kms::{Kind, Material, RemoteSigner},
+    provider::{Kind, Material, RemoteSigner},
     status::Status,
 };
 use openssl::{
@@ -49,6 +49,15 @@ fn main() -> Result<()> {
             der: key.public_key_to_der()?,
             created: std::time::UNIX_EPOCH + std::time::Duration::from_secs(1700000000),
             kind,
+            hashes: if kind == Kind::Ed25519 {
+                vec![HashAlgorithm::SHA512]
+            } else {
+                vec![
+                    HashAlgorithm::SHA256,
+                    HashAlgorithm::SHA384,
+                    HashAlgorithm::SHA512,
+                ]
+            },
         };
         Ok((Local(key), m))
     })

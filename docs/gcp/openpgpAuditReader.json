@@ -1,0 +1,11 @@
+{
+  "title": "openpgpAuditReader",
+  "description": "OpenPGP dedicated integration project; see Google setup guide",
+  "stage": "GA",
+  "includedPermissions": [
+    "logging.logEntries.list",
+    "logging.privateLogEntries.list",
+    "resourcemanager.projects.get",
+    "serviceusage.services.use"
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "name": "projects/123456789012/policies/gcp.resourceLocations",
+  "spec": {
+    "rules": [
+      {
+        "values": {
+          "allowedValues": [
+            "in:us-central1-locations"
+          ]
+        }
+      }
+    ]
+  }
+}

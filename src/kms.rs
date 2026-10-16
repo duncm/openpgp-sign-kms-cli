@@ -5,24 +5,10 @@ use aws_sdk_kms::{
     primitives::Blob,
     types::{KeySpec, KeyState, KeyUsageType, MessageType, SigningAlgorithmSpec},
 };
-use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use sequoia_openpgp::types::HashAlgorithm;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, UNIX_EPOCH};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Kind {
-    Rsa(u32),
-    Ed25519,
-}
-pub struct Material {
-    pub der: Vec<u8>,
-    pub created: SystemTime,
-    pub kind: Kind,
-}
-pub trait RemoteSigner: Send + Sync {
-    fn sign(&mut self, hash: HashAlgorithm, digest: &[u8]) -> Result<Vec<u8>>;
-}
-
+use crate::provider::{Kind, Material, RemoteSigner};
 pub fn region(arn: &str) -> Result<String> {
     let p: Vec<_> = arn.split(':').collect();
     ensure!(
@@ -44,18 +30,6 @@ pub fn region(arn: &str) -> Result<String> {
         "invalid KMS key ID"
     );
     Ok(p[3].to_owned())
-}
-pub fn user_agent(description: Option<&str>) -> Result<String> {
-    let mut ua = format!("openpgp-sign-kms/{}", env!("CARGO_PKG_VERSION"));
-    if let Some(d) = description.filter(|d| !d.is_empty()) {
-        ua.push_str(" description/");
-        ua.push_str(&URL_SAFE_NO_PAD.encode(d));
-    }
-    ensure!(
-        ua.len() <= 1024,
-        "description exceeds the 1024-byte encoded User-Agent budget"
-    );
-    Ok(ua)
 }
 pub fn algorithm(kind: Kind, hash: HashAlgorithm) -> Result<(SigningAlgorithmSpec, MessageType)> {
     Ok(match (kind, hash) {
@@ -153,6 +127,15 @@ impl Kms {
                 .into_inner(),
             created: UNIX_EPOCH + Duration::from_secs(seconds as u64),
             kind,
+            hashes: if kind == Kind::Ed25519 {
+                vec![HashAlgorithm::SHA512]
+            } else {
+                vec![
+                    HashAlgorithm::SHA256,
+                    HashAlgorithm::SHA384,
+                    HashAlgorithm::SHA512,
+                ]
+            },
         };
         Ok((
             Self {
@@ -201,6 +184,7 @@ impl RemoteSigner for Kms {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::provider::user_agent;
     #[test]
     fn validate_arn() {
         assert_eq!(

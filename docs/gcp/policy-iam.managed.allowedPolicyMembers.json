@@ -1,0 +1,15 @@
+{
+  "name": "projects/123456789012/policies/iam.managed.allowedPolicyMembers",
+  "spec": {
+    "rules": [
+      {
+        "enforce": true,
+        "parameters": {
+          "allowedPrincipalSets": [
+            "//cloudresourcemanager.googleapis.com/organizations/123456789012"
+          ]
+        }
+      }
+    ]
+  }
+}

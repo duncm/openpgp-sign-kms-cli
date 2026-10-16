@@ -17,7 +17,7 @@ pub enum GitMetadata {
     Auto,
 }
 
-/// Sign OpenPGP messages using an AWS KMS key. Compatible with Git's GPG signer invocation.
+/// Sign OpenPGP messages using an AWS or Google Cloud KMS key. Compatible with Git's GPG signer invocation.
 #[derive(Debug, Parser)]
 #[command(version, disable_help_subcommand = true)]
 pub struct Args {
