@@ -20,12 +20,13 @@ Set these environment variables:
 | Variable | Meaning |
 | --- | --- |
 | `AWS_ROLE_ARN` | OIDC role trusted for this repository/environment |
-| `AWS_REGION` | Region in which temporary test keys are created |
+| `AWS_REGION` | `us-west-2` for this project’s temporary test keys |
 
 Each matrix job creates its own temporary keys and schedules their deletion after
 use. A daily workflow recovers expired keys from interrupted jobs. Review and apply
 the [temporary-key IAM policy and lifecycle setup](temporary-test-keys.md) before
-enabling these workflows. Permanent key-ARN variables are no longer configured.
+enabling these workflows. Follow the [policy and region cutover](aws-guardrails.md)
+before changing an existing environment. Permanent key-ARN variables are no longer configured.
 Missing configuration fails integration and blocks release.
 CloudTrail may take several minutes; the test uses a unique description and a
 bounded polling window. It fails if the expected event never appears.

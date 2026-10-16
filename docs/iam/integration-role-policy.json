@@ -8,7 +8,7 @@
       "Resource": "*",
       "Condition": {
         "StringEquals": {
-          "aws:RequestedRegion": "ap-southeast-2",
+          "aws:RequestedRegion": "us-west-2",
           "aws:RequestTag/Project": "openpgp-sign-kms",
           "aws:RequestTag/Purpose": "integration-temporary",
           "aws:RequestTag/ManagedBy": "openpgp-sign-kms-ci",
@@ -54,10 +54,10 @@
       "Sid": "TagTemporaryKeysAtCreation",
       "Effect": "Allow",
       "Action": "kms:TagResource",
-      "Resource": "arn:aws:kms:ap-southeast-2:889580843530:key/*",
+      "Resource": "arn:aws:kms:us-west-2:889580843530:key/*",
       "Condition": {
         "StringEquals": {
-          "aws:RequestedRegion": "ap-southeast-2",
+          "aws:RequestedRegion": "us-west-2",
           "aws:RequestTag/Project": "openpgp-sign-kms",
           "aws:RequestTag/Purpose": "integration-temporary",
           "aws:RequestTag/ManagedBy": "openpgp-sign-kms-ci",
@@ -96,7 +96,7 @@
       "Resource": "*",
       "Condition": {
         "StringEquals": {
-          "aws:RequestedRegion": "ap-southeast-2"
+          "aws:RequestedRegion": "us-west-2"
         }
       }
     },
@@ -107,10 +107,10 @@
         "kms:DescribeKey",
         "kms:ListResourceTags"
       ],
-      "Resource": "arn:aws:kms:ap-southeast-2:889580843530:key/*",
+      "Resource": "arn:aws:kms:us-west-2:889580843530:key/*",
       "Condition": {
         "StringEquals": {
-          "aws:RequestedRegion": "ap-southeast-2"
+          "aws:RequestedRegion": "us-west-2"
         }
       }
     },
@@ -121,10 +121,10 @@
         "kms:GetPublicKey",
         "kms:Sign"
       ],
-      "Resource": "arn:aws:kms:ap-southeast-2:889580843530:key/*",
+      "Resource": "arn:aws:kms:us-west-2:889580843530:key/*",
       "Condition": {
         "StringEquals": {
-          "aws:RequestedRegion": "ap-southeast-2",
+          "aws:RequestedRegion": "us-west-2",
           "aws:ResourceTag/Project": "openpgp-sign-kms",
           "aws:ResourceTag/Purpose": "integration-temporary",
           "aws:ResourceTag/ManagedBy": "openpgp-sign-kms-ci",
@@ -148,10 +148,10 @@
       "Sid": "ScheduleTemporaryKeyDeletion",
       "Effect": "Allow",
       "Action": "kms:ScheduleKeyDeletion",
-      "Resource": "arn:aws:kms:ap-southeast-2:889580843530:key/*",
+      "Resource": "arn:aws:kms:us-west-2:889580843530:key/*",
       "Condition": {
         "StringEquals": {
-          "aws:RequestedRegion": "ap-southeast-2",
+          "aws:RequestedRegion": "us-west-2",
           "aws:ResourceTag/Project": "openpgp-sign-kms",
           "aws:ResourceTag/Purpose": "integration-temporary",
           "aws:ResourceTag/ManagedBy": "openpgp-sign-kms-ci",
@@ -180,7 +180,7 @@
       "Resource": "*",
       "Condition": {
         "StringEquals": {
-          "aws:RequestedRegion": "ap-southeast-2"
+          "aws:RequestedRegion": "us-west-2"
         }
       },
       "Sid": "CheckCloudTrailDescriptions"

@@ -9,7 +9,9 @@ keys are no longer required by the current workflows.
 | CLI | One RSA-3072 and one Ed25519 key | 4 |
 
 The role and region still come from the `integration` environment's
-`AWS_ROLE_ARN` and `AWS_REGION` variables. The helper supplies generated key ARNs
+`AWS_ROLE_ARN` and `AWS_REGION` variables. The target test region is `us-west-2`;
+follow the [policy and region cutover](aws-guardrails.md) before changing an existing
+environment. The helper supplies generated key ARNs
 through `GITHUB_ENV`; the action and CLI signing interfaces are unchanged.
 
 ## Lifecycle and cleanup
@@ -57,26 +59,39 @@ within 24–48 hours of creation. An expiry tag does not itself trigger AWS dele
 
 ## Integration role policy
 
-The `openpgp-sign-kms-integration` inline policy on role
-`openpgp-sign-kms-github-integration` was reviewed and applied on 16 October 2026.
-Signing and deletion permissions are limited to temporary test keys:
+The role `openpgp-sign-kms-github-integration` uses the customer-managed policy
+`arn:aws:iam::889580843530:policy/openpgp-sign-kms-integration`. It has no inline
+policy. The bootstrap IAM user and its local static-credential profile have been
+removed; administration uses IAM Identity Center or an organization administration
+role. GitHub workflows continue to authenticate through OIDC.
 
-- [Current complete policy](iam/integration-role-policy.json)
+The files below are review drafts for the region change and additional guardrails.
+Preparing or merging them does not update AWS policies or GitHub environment variables.
 
-The policy targets account `889580843530`, region `ap-southeast-2`, and the two
-`duncm` repositories. Other deployments must substitute their account, region,
-and repository names.
+| Policy | Purpose |
+| --- | --- |
+| [Managed policy](iam/integration-role-policy.json) | Existing permissions retargeted to `us-west-2` |
+| [Integration-role SCP](iam/integration-role-scp.json) | Deny unexpected operations, other regions, and other key resources |
+| [KMS RCP](iam/integration-kms-rcp.json) | Restrict access to this account’s customer-managed keys |
 
-| Permission | Scope |
+The drafts target account `889580843530` and the two `duncm` repositories.
+Other deployments must substitute their account, role ARN, region, and repository
+names. See [guardrail scope, validation, and application](aws-guardrails.md).
+
+| Managed-policy permission | Scope |
 | --- | --- |
 | Create keys | Required tags; RSA-3072/Ed25519; `SIGN_VERIFY`; AWS-generated; single-region |
 | Tag keys at creation | Exact allowed tag names and required ownership values |
 | List keys, read metadata/tags | Account/region discovery for orphan cleanup |
 | Get public keys and sign | Temporary-key ownership tags and supported key properties |
 | Schedule deletion | Same restrictions; exactly seven days |
+| Look up CloudTrail events | `us-west-2`; used to verify audit descriptions |
 
-There is no new permission to cancel deletion, change key policies, create grants,
-or manage IAM. The OIDC trust policy and environment restrictions stay unchanged.
+The managed-policy action set is unchanged. It does not add permissions to cancel
+deletion, change existing key policies, create grants, or manage IAM. However,
+`CreateKey` can supply an initial key policy; the [SCP and RCP](aws-guardrails.md)
+address limits that an identity-policy allow list alone cannot enforce. The OIDC
+trust policy and GitHub environment branch restrictions do not change.
 
 ### Tagging permission boundary
 
@@ -93,27 +108,13 @@ already authorized to assume that shared role.
 
 ### Apply after review
 
-From the CLI repository:
+Use the [managed-policy update and cutover procedure](aws-guardrails.md#cutover-order).
+Create a new default version of the existing managed policy; do not recreate an
+inline policy or a bootstrap IAM user.
 
-```sh
-aws --profile openpgp-sign-kms-testing iam put-role-policy \
-  --role-name openpgp-sign-kms-github-integration \
-  --policy-name openpgp-sign-kms-integration \
-  --policy-document file://docs/iam/integration-role-policy.json
-```
-
-Apply the reviewed policy before merging/enabling the new workflows. Then run
-manual integration in both repositories and confirm every created ARN reaches
-`PendingDeletion`. Dispatch orphan cleanup in dry-run mode, then exercise recovery
-with an expired temporary fixture. Ordinary PR CI remains independent of AWS.
-
-The old `KMS_RSA_KEY_ARN` and `KMS_ED25519_KEY_ARN` GitHub environment variables
-have been removed from both repositories. Historical integration/release workflow
-versions that require those variables can no longer be rerun successfully. Current
-workflows receive their generated key ARNs through job-local environment variables.
-
-Before rolling back the IAM policy, clean up outstanding temporary keys so the
-daily workflow does not lose permission to retire them.
+No permanent key-ARN GitHub variables are needed. Current workflows receive their
+generated key ARNs through job-local environment variables. Historical workflows
+that require permanent key variables cannot be rerun successfully.
 
 ## Permanent key retirement
 
@@ -137,14 +138,14 @@ Tests cover partial creation, lost responses, readiness failures, cleanup retrie
 malformed journals, ownership/account/region guards, expiry, pagination settings,
 dry runs, and idempotence. Both CI workflows run them without AWS credentials.
 
-The current policy passes AWS IAM Access Analyzer `ValidatePolicy` with no findings.
-Identity-policy simulations verify temporary-key access and rejection of missing
-ownership tags, unsupported key types, multi-region keys, and non-seven-day deletion
-windows. The retired permanent keys have no signing or deletion allow statement.
-These simulations cover the identity policy, not full live KMS resource-policy evaluation.
+The previous managed-policy contents passed IAM Access Analyzer validation and live
+integration. The new-region policy and organization guardrails require fresh
+validation; prior results do not validate the SCP/RCP or their combined effects.
+The [guardrail guide](aws-guardrails.md#validation-before-application) includes
+Access Analyzer commands and the live acceptance checks to run after review.
 
-The integration workflows validate creation, signing, and scheduling deletion with
-actual temporary keys. Daily cleanup also supports manual dry runs.
+Offline lifecycle tests remain credential-free. Integration and daily cleanup use
+the GitHub OIDC role, not a local profile.
 
 ## AWS references
 
