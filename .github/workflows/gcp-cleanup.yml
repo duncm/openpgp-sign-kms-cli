@@ -8,6 +8,10 @@ on:
         description: Report eligible versions without destroying them
         type: boolean
         default: true
+      recover_versions:
+        description: Optional JSON array of exact version names to clean up regardless of age
+        type: string
+        default: '[]'
 permissions:
   contents: read
 concurrency:
@@ -37,12 +41,16 @@ jobs:
       - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
       - name: Sweep expired versions
         env:
+          RECOVERY_VERSIONS: ${{ inputs.recover_versions || '[]' }}
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'true' || 'false' }}
         run: |
           set -euo pipefail
           args=()
           if [[ "$DRY_RUN" == true ]]; then args+=(--dry-run); fi
-          python3 scripts/gcp-test-keys.py sweep "${args[@]}" 2>&1 | tee gcp-cleanup-report.log
+          {
+            python3 scripts/gcp-test-keys.py recover --versions-json "$RECOVERY_VERSIONS" "${args[@]}"
+            python3 scripts/gcp-test-keys.py sweep "${args[@]}"
+          } 2>&1 | tee gcp-cleanup-report.log
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:

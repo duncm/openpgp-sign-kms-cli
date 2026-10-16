@@ -25,7 +25,14 @@ TTL = 24 * 3600
 
 
 def timestamp(value):
-    return dt.datetime.fromisoformat(value.replace('Z', '+00:00')).timestamp()
+    # Python 3.10 accepts only 3 or 6 fractional digits; protobuf emits up to 9.
+    # Age comparisons need microseconds, so truncate/pad before parsing.
+    match = re.fullmatch(r'(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,9}))?(Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)', value)
+    if not match:
+        raise ValueError('invalid RFC3339 key creation timestamp')
+    fraction = (match[2] or '').ljust(6, '0')[:6]
+    zone = '+00:00' if match[3] == 'Z' else match[3]
+    return dt.datetime.fromisoformat(match[1] + '.' + fraction + zone).timestamp()
 
 
 class Api:
@@ -153,6 +160,20 @@ class Keys:
         if failures:
             raise RuntimeError('\n'.join(failures))
 
+    def recover(self, names, dry_run):
+        # Only explicitly named versions bypass the daily sweeper's age threshold.
+        # Validate the complete selection before making any changes.
+        if not isinstance(names, list) or any(not isinstance(n, str) for n in names):
+            raise ValueError('recovery versions must be a JSON array of resource names')
+        parents = {parent: protection for protection in ('software', 'hsm') for parent in self.parents(protection)}
+        records = []
+        for name in dict.fromkeys(names):
+            parent = name.rsplit('/cryptoKeyVersions/', 1)[0]
+            if parent not in parents or not re.fullmatch(re.escape(parent) + r'/cryptoKeyVersions/[1-9][0-9]*', name):
+                raise ValueError('recovery version outside configured allowlist: ' + name)
+            records.append({'name': name, 'protection': parents[parent]})
+        self.cleanup(records, dry_run)
+
     def sweep(self, dry_run):
         failures = []
         for protection in ('software', 'hsm'):
@@ -168,11 +189,12 @@ class Keys:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('operation', choices=['create', 'cleanup', 'sweep'])
+    parser.add_argument('operation', choices=['create', 'cleanup', 'sweep', 'recover'])
     parser.add_argument('--protection', choices=['software', 'hsm'], default='software')
     parser.add_argument('--state')
     parser.add_argument('--kind', action='append', choices=list(ALGORITHMS))
     parser.add_argument('--dry-run', action='store_true')
+    parser.add_argument('--versions-json', default='[]')
     args = parser.parse_args()
     keys = Keys(Api(), os.environ['GCP_PROJECT_ID'], os.environ.get('GCP_LOCATION', 'us-central1'), os.environ['GITHUB_REPOSITORY'])
     if args.operation == 'create':
@@ -192,6 +214,8 @@ def main():
             keys.cleanup(records, args.dry_run)
             if errors:
                 raise RuntimeError('malformed journal records: ' + '; '.join(errors))
+    elif args.operation == 'recover':
+        keys.recover(json.loads(args.versions_json), args.dry_run)
     else:
         keys.sweep(args.dry_run)
 

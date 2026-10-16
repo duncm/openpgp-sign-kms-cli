@@ -64,4 +64,6 @@ jobs:
         if: always()
         with:
           name: gcp-cleanup-${{ runner.arch }}
-          path: ${{ runner.temp }}/gcp-cleanup.log
+          path: |
+            ${{ runner.temp }}/gcp-cleanup.log
+            ${{ runner.temp }}/gcp-versions.jsonl
