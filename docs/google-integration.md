@@ -102,9 +102,26 @@ bash /tmp/openpgp-google-review/provision-runtime.sh
 The script stops on errors. If interrupted, inspect resources and resume the remaining
 commands individually; do not delete/recreate the project or suppress arbitrary errors.
 
+If an older generated script stopped because provider ID `hsm` was too short,
+regenerate the files with your original project configuration using the fixed
+renderer. Keep the existing pool and `software` provider. Resume at `hsm-smoke`:
+
+```sh
+cd /tmp/openpgp-google-review
+sed -n '/^gcloud iam workload-identity-pools providers create-oidc hsm-smoke /,$p' \
+  provision-runtime.sh > resume-runtime.sh
+test -s resume-runtime.sh
+bash -euo pipefail resume-runtime.sh
+```
+
+Regeneration also corrects the HSM audience and `github-environments.json`; use
+those updated values when configuring GitHub. Key protection levels, key-ring
+names, and the `gcp-hsm` environment keep their existing names.
+
 It creates:
 
-- One dedicated workload pool with software and HSM providers.
+- One dedicated workload pool with providers `software` and `hsm-smoke`.
+  Provider IDs require 4–32 characters; `hsm` alone is too short.
 - Four service accounts: software and HSM for each repository.
 - Four test key rings, scoped by repository and protection level.
 - Five software key containers for CLI tests; two for action tests.

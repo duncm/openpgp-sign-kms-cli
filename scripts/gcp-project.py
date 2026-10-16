@@ -8,6 +8,7 @@ import shlex
 
 ALGORITHMS = {'rsa2048':'RSA_SIGN_PKCS1_2048_SHA256','rsa3072':'RSA_SIGN_PKCS1_3072_SHA256','rsa4096':'RSA_SIGN_PKCS1_4096_SHA256','rsa4096-sha512':'RSA_SIGN_PKCS1_4096_SHA512','ed25519':'EC_SIGN_ED25519'}
 POOL = 'openpgp-github'
+PROVIDERS = {'software': 'software', 'hsm': 'hsm-smoke'}
 
 def federation_condition(config, hsm):
     environment = 'gcp-hsm' if hsm else 'gcp-integration'
@@ -32,6 +33,9 @@ def render(config, output):
     if set(config['repositories']) != {'cli','action'}: raise ValueError('expected cli and action repositories')
     for r in config['repositories'].values():
         if not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+',r['name']): raise ValueError('invalid repository')
+    for identifier in [POOL, *PROVIDERS.values()]:
+        if not re.fullmatch(r'[a-z0-9-]{4,32}', identifier) or identifier.startswith('gcp-'):
+            raise ValueError('invalid workload identity pool/provider ID: ' + identifier)
     output.mkdir(parents=True, exist_ok=True)
     def write(name, value):
         (output/name).write_text(json.dumps(value,indent=2)+'\n')
@@ -80,9 +84,9 @@ def render(config, output):
         level='hsm' if hsm else 'software'
         condition=federation_condition(config,hsm)
         mapping='google.subject=assertion.sub,attribute.repository_id=assertion.repository_id,attribute.environment=assertion.environment,attribute.workload=assertion.repository_id+"_"+assertion.environment'
-        provider=f'projects/{number}/locations/global/workloadIdentityPools/{POOL}/providers/{level}'
+        provider=f'projects/{number}/locations/global/workloadIdentityPools/{POOL}/providers/{PROVIDERS[level]}'
         write('provider-'+level+'.json',{'name':provider,'oidc':{'issuerUri':'https://token.actions.githubusercontent.com','allowedAudiences':['https://iam.googleapis.com/'+provider]},'attributeMapping':{'google.subject':'assertion.sub','attribute.repository_id':'assertion.repository_id','attribute.environment':'assertion.environment','attribute.workload':'assertion.repository_id+"_"+assertion.environment'},'attributeCondition':condition})
-        cmd('gcloud','iam','workload-identity-pools','providers','create-oidc',level,'--project='+project,'--location=global','--workload-identity-pool='+POOL,'--issuer-uri=https://token.actions.githubusercontent.com','--allowed-audiences=https://iam.googleapis.com/'+provider,'--attribute-mapping='+mapping,'--attribute-condition='+condition)
+        cmd('gcloud','iam','workload-identity-pools','providers','create-oidc',PROVIDERS[level],'--project='+project,'--location=global','--workload-identity-pool='+POOL,'--issuer-uri=https://token.actions.githubusercontent.com','--allowed-audiences=https://iam.googleapis.com/'+provider,'--attribute-mapping='+mapping,'--attribute-condition='+condition)
     for name in ['openpgpIntegration','openpgpCleanup','openpgpAuditReader']:
         cmd('gcloud','iam','roles','create',name,'--project='+project,'--file='+name+'.json')
     for label,account in accounts.items():
@@ -101,7 +105,7 @@ def render(config, output):
             if level=='hsm':
                 cmd('gcloud','kms','keys','add-iam-policy-binding',kind,*flags,'--role=projects/'+project+'/roles/openpgpCleanup','--member=serviceAccount:'+accounts[repo+'-software'])
     (output/'provision-runtime.sh').write_text('\n'.join(commands)+'\n')
-    write('github-environments.json',{repo:{environment:{'GCP_PROJECT_ID':project,'GCP_WORKLOAD_IDENTITY_PROVIDER':f'projects/{number}/locations/global/workloadIdentityPools/{POOL}/providers/{level}','GCP_SERVICE_ACCOUNT':accounts[repo+'-'+level]} for environment,level in [('gcp-integration','software'),('gcp-hsm','hsm')]} for repo in config['repositories']})
+    write('github-environments.json',{repo:{environment:{'GCP_PROJECT_ID':project,'GCP_WORKLOAD_IDENTITY_PROVIDER':f'projects/{number}/locations/global/workloadIdentityPools/{POOL}/providers/{PROVIDERS[level]}','GCP_SERVICE_ACCOUNT':accounts[repo+'-'+level]} for environment,level in [('gcp-integration','software'),('gcp-hsm','hsm')]} for repo in config['repositories']})
     return accounts
 
 def main():

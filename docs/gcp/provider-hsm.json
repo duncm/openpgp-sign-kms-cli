@@ -1,9 +1,9 @@
 {
-  "name": "projects/123456789012/locations/global/workloadIdentityPools/openpgp-github/providers/hsm",
+  "name": "projects/123456789012/locations/global/workloadIdentityPools/openpgp-github/providers/hsm-smoke",
   "oidc": {
     "issuerUri": "https://token.actions.githubusercontent.com",
     "allowedAudiences": [
-      "https://iam.googleapis.com/projects/123456789012/locations/global/workloadIdentityPools/openpgp-github/providers/hsm"
+      "https://iam.googleapis.com/projects/123456789012/locations/global/workloadIdentityPools/openpgp-github/providers/hsm-smoke"
     ]
   },
   "attributeMapping": {
