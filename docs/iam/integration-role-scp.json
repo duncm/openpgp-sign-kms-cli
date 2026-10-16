@@ -1,0 +1,62 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DenyUnexpectedIntegrationOperations",
+      "Effect": "Deny",
+      "NotAction": [
+        "kms:CreateKey",
+        "kms:TagResource",
+        "kms:ListKeys",
+        "kms:DescribeKey",
+        "kms:ListResourceTags",
+        "kms:GetPublicKey",
+        "kms:Sign",
+        "kms:ScheduleKeyDeletion",
+        "cloudtrail:LookupEvents",
+        "sts:GetCallerIdentity"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "ArnEquals": {
+          "aws:PrincipalArn": "arn:aws:iam::889580843530:role/openpgp-sign-kms-github-integration"
+        }
+      }
+    },
+    {
+      "Sid": "DenyIntegrationOperationsOutsideTestRegion",
+      "Effect": "Deny",
+      "Action": [
+        "kms:*",
+        "cloudtrail:LookupEvents"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "ArnEquals": {
+          "aws:PrincipalArn": "arn:aws:iam::889580843530:role/openpgp-sign-kms-github-integration"
+        },
+        "StringNotEquals": {
+          "aws:RequestedRegion": "us-west-2"
+        }
+      }
+    },
+    {
+      "Sid": "DenyIntegrationAccessToOtherKeyResources",
+      "Effect": "Deny",
+      "Action": [
+        "kms:TagResource",
+        "kms:DescribeKey",
+        "kms:ListResourceTags",
+        "kms:GetPublicKey",
+        "kms:Sign",
+        "kms:ScheduleKeyDeletion"
+      ],
+      "NotResource": "arn:aws:kms:us-west-2:889580843530:key/*",
+      "Condition": {
+        "ArnEquals": {
+          "aws:PrincipalArn": "arn:aws:iam::889580843530:role/openpgp-sign-kms-github-integration"
+        }
+      }
+    }
+  ]
+}

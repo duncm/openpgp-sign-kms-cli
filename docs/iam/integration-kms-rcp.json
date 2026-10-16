@@ -1,0 +1,35 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DenyExternalPrincipalsOnTestAccountKeys",
+      "Effect": "Deny",
+      "Principal": "*",
+      "Action": "kms:*",
+      "Resource": "arn:aws:kms:*:889580843530:key/*",
+      "Condition": {
+        "StringNotEqualsIfExists": {
+          "aws:PrincipalAccount": "889580843530"
+        },
+        "BoolIfExists": {
+          "aws:PrincipalIsAWSService": "false"
+        }
+      }
+    },
+    {
+      "Sid": "DenyServiceRequestsWithoutLocalSourceAccount",
+      "Effect": "Deny",
+      "Principal": "*",
+      "Action": "kms:*",
+      "Resource": "arn:aws:kms:*:889580843530:key/*",
+      "Condition": {
+        "Bool": {
+          "aws:PrincipalIsAWSService": "true"
+        },
+        "StringNotEqualsIfExists": {
+          "aws:SourceAccount": "889580843530"
+        }
+      }
+    }
+  ]
+}

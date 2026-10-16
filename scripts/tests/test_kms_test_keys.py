@@ -14,7 +14,7 @@ keys = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = keys
 spec.loader.exec_module(keys)
 NOW = 1_800_000_000
-CTX = keys.Context("ap-southeast-2", "123456789012", "duncm/openpgp-sign-kms", "100", "2", "test-arm64-RSA")
+CTX = keys.Context("us-west-2", "123456789012", "duncm/openpgp-sign-kms", "100", "2", "test-arm64-RSA")
 
 
 class FakeAws:
@@ -27,7 +27,7 @@ class FakeAws:
         self.fail_schedule = set()
 
     def add(self, tags=None, created=NOW, **changes):
-        arn = f"arn:aws:kms:ap-southeast-2:123456789012:key/00000000-0000-0000-0000-{len(self.items) + 1:012d}"
+        arn = f"arn:aws:kms:us-west-2:123456789012:key/00000000-0000-0000-0000-{len(self.items) + 1:012d}"
         key = dict(Arn=arn, KeyManager="CUSTOMER", KeyUsage="SIGN_VERIFY", KeySpec="RSA_3072",
                    Origin="AWS_KMS", MultiRegion=False, KeyState="Enabled", CreationDate=created)
         key.update(changes)
@@ -212,14 +212,14 @@ class LifecycleTests(unittest.TestCase):
         arn = self.aws.add()
         CTX.validate_arn(arn)
         for invalid in [arn.replace('123456789012', '999999999999'),
-                        arn.replace('ap-southeast-2', 'us-east-1'), arn + '\nEVIL=1']:
+                        arn.replace('us-west-2', 'us-east-1'), arn + '\nEVIL=1']:
             with self.assertRaises(ValueError):
                 CTX.validate_arn(invalid)
 
 
 class AwsCliTests(unittest.TestCase):
     def test_create_has_no_automatic_retries_and_reads_keep_pagination(self):
-        aws = keys.Aws('ap-southeast-2')
+        aws = keys.Aws('us-west-2')
         with patch.object(keys.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, '{}', '')) as run:
             aws.call('kms', 'create-key')
             self.assertEqual(run.call_args.kwargs['env']['AWS_MAX_ATTEMPTS'], '1')
