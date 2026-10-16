@@ -14,8 +14,8 @@ Protect `main` from direct updates and limit version-tag creation to maintainers
 
 ## Integration environment
 
-Create the GitHub environment `integration` restricted to main and release tags.
-Set these environment variables:
+Both repositories have an `integration` environment restricted to main and release
+tags. Their current configuration is:
 
 | Variable | Meaning |
 | --- | --- |
@@ -23,10 +23,11 @@ Set these environment variables:
 | `AWS_REGION` | `us-west-2` for this project’s temporary test keys |
 
 Each matrix job creates its own temporary keys and schedules their deletion after
-use. A daily workflow recovers expired keys from interrupted jobs. Review and apply
-the [temporary-key IAM policy and lifecycle setup](temporary-test-keys.md) before
-enabling these workflows. Follow the [policy and region cutover](aws-guardrails.md)
-before changing an existing environment. Permanent key-ARN variables are no longer configured.
+use. A daily workflow recovers expired keys from interrupted jobs. The managed IAM
+policy, SCP, and KMS RCP are applied; see the [completed rollout and successful runs](aws-guardrails.md#verified-rollout).
+The [temporary-key guide](temporary-test-keys.md) owns lifecycle details, and the
+[guardrail guide](aws-guardrails.md) covers future policy changes and rollback.
+Permanent key-ARN variables are no longer configured.
 Missing configuration fails integration and blocks release.
 CloudTrail may take several minutes; the test uses a unique description and a
 bounded polling window. It fails if the expected event never appears.
