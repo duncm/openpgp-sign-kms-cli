@@ -77,6 +77,37 @@ Simulator/dry-run findings before enforcement. Dry-run is not available for IAM 
 use the dedicated project and recovery identity for its staged validation.
 [Testing policies](https://docs.cloud.google.com/organization-policy/test-organization-policies)
 
+## Grant deny-policy administration
+
+Creating an IAM deny policy requires `roles/iam.denyAdmin`. Google allows this role
+to be granted on the **organization**, even when the policy is attached to a project.
+Project Owner and Organization Policy Administrator do not provide deny-policy
+creation permission. [Required role](https://docs.cloud.google.com/iam/docs/deny-access#required_roles)
+
+An administrator who can modify the organization's IAM allow policy can grant it
+temporarily to your human administrator identity. Replace `YOUR_ADMIN_EMAIL`:
+
+```sh
+export ADMIN_EMAIL='YOUR_ADMIN_EMAIL'
+DENY_ADMIN_UNTIL=$(date -u -d '+1 hour' '+%Y-%m-%dT%H:%M:%SZ')
+gcloud organizations add-iam-policy-binding "$ORG_ID" \
+  --member="user:$ADMIN_EMAIL" \
+  --role=roles/iam.denyAdmin \
+  --condition="expression=request.time < timestamp('$DENY_ADMIN_UNTIL'),title=openpgp-deny-setup"
+```
+
+This grants organization-wide deny-policy administration for one hour through an
+IAM **allow-policy binding**. It does not change the scope of our project-attached
+deny policy. Do not grant this role to the workflow accounts. After IAM propagation,
+retry the failed `gcloud iam policies create` command; already-applied Organization
+Policies do not need to be reapplied.
+
+The time condition stops this binding from granting access after expiry. To remove
+the binding earlier, run the equivalent `gcloud organizations remove-iam-policy-binding`
+command with the same member, role, and condition. Do not remove another existing
+administrative binding. If the grant command is denied, use an organization IAM
+administrator; project ownership alone is insufficient for that grant.
+
 ## Apply the reviewed policies
 
 Create the custom constraint definition at organization scope; enforcement below is

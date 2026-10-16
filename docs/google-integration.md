@@ -14,6 +14,8 @@ Use an existing organization administrator identity with MFA. Obtain approval fo
 project creation, billing attachment, custom-role and federation administration,
 KMS provisioning, IAM deny administration, and organization-policy administration.
 Do not grant those administration roles to workflow service accounts.
+Deny-policy creation specifically requires an organization-level `roles/iam.denyAdmin`
+grant; see [temporary deny administration](google-guardrails.md#grant-deny-policy-administration).
 
 Choose a project ID, organization/folder, billing account, and recovery group whose
 members can administer this project. The group must belong to the organization.
