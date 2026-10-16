@@ -1,27 +1,52 @@
-# Test-account policies and region cutover
+# Test-account policies
 
-**Review drafts — not applied by a repository change.** The target account is
-`889580843530`, the test region is `us-west-2`, and the integration role is
-`openpgp-sign-kms-github-integration`.
+The move to `us-west-2` completed on **16 October 2026**. Both repositories use
+that region for integration and orphan cleanup. The customer-managed IAM policy
+is applied to `openpgp-sign-kms-github-integration`, and the SCP and KMS RCP are
+attached to member account `889580843530`.
 
-The account owner confirmed that all test keys in the previous region are already
-`PendingDeletion`. No dual-region permission period or seven-day wait is needed.
-KMS completes scheduled deletion without further workflow access. See
+## Verified rollout
+
+All runs below passed on `main`. Baseline runs verified the region change with the
+updated managed policy; the subsequent runs verified required workflow operations
+with the managed policy, SCP, and RCP applied together.
+
+| Repository | Permissions | Integration | Orphan cleanup |
+| --- | --- | --- | --- |
+| Action | Managed-policy baseline | [Passed](https://github.com/duncm/openpgp-sign-kms/actions/runs/38842112721) | [Passed](https://github.com/duncm/openpgp-sign-kms/actions/runs/38842377830) |
+| CLI | Managed-policy baseline | [Passed](https://github.com/duncm/openpgp-sign-kms-cli/actions/runs/38842124275) | [Passed](https://github.com/duncm/openpgp-sign-kms-cli/actions/runs/38842773953) |
+| Action | Managed policy + SCP + RCP | [Passed](https://github.com/duncm/openpgp-sign-kms/actions/runs/38843115614) | [Passed](https://github.com/duncm/openpgp-sign-kms/actions/runs/38843375946) |
+| CLI | Managed policy + SCP + RCP | [Passed](https://github.com/duncm/openpgp-sign-kms-cli/actions/runs/38843118774) | [Passed](https://github.com/duncm/openpgp-sign-kms-cli/actions/runs/38843563041) |
+
+Integration covered RSA-3072 and Ed25519 on x86_64 and ARM64, signing modes, GPG
+verification, and CloudTrail descriptions. CLI integration also covered Git signing.
+The runs with all policies applied created eight distinct test keys in `us-west-2`;
+job cleanup scheduled all eight for seven-day deletion.
+
+Both subsequent orphan sweeps used `dry_run=false`. The action scanned 12 keys
+(eight owned by that repository); the CLI scanned 16 (eight owned by that repository).
+Neither found an expired candidate. Actual deletion scheduling was exercised by
+job cleanup; these sweeps verified discovery and filtering, not expired-key recovery.
+
+These results establish compatibility for the required workflow operations. They
+do not exhaustively test denied actions, external principals, or direct AWS service
+requests. The RCP warning and future-change checks below remain relevant.
+
+All test keys in the previous region were already `PendingDeletion` before the
+switch, so no dual-region permission period was needed. Scheduled deletion continues
+without workflow access to that region. See
 [AWS key deletion](https://docs.aws.amazon.com/kms/latest/developerguide/deleting-keys.html).
-
-Apply the managed policy before changing `AWS_REGION`. Avoid running integration,
-release, or cleanup jobs while permissions and environment variables disagree.
 
 ## Policy files and scope
 
-| File | Where it belongs |
+| File | Applied configuration |
 | --- | --- |
-| [integration-role-policy.json](iam/integration-role-policy.json) | New default version of the existing customer-managed IAM policy |
+| [integration-role-policy.json](iam/integration-role-policy.json) | Default version of the customer-managed integration IAM policy |
 | [integration-role-scp.json](iam/integration-role-scp.json) | Organizations SCP attached only to this member account |
 | [integration-kms-rcp.json](iam/integration-kms-rcp.json) | Organizations RCP attached only to this member account |
 
-The IAM policy changes only the region. It retains the existing actions, required
-tags, key types, and seven-day deletion window. Its statement responsibilities are
+The IAM policy update changed only the region. It retained the existing actions,
+required tags, key types, and seven-day deletion window. Its statement responsibilities are
 listed in the [temporary-key guide](temporary-test-keys.md#integration-role-policy).
 
 ### Integration-role SCP
@@ -41,16 +66,17 @@ not restrict the account’s SSO/organization administration roles.
 
 The SCP grants nothing. Keep the existing SCP allow baseline at every applicable
 organization level; adding a separate `Allow` cannot override these denies.
-Do not attach this account-specific draft to the organization root. See
+Do not attach this account-specific policy to the organization root. See
 [SCP evaluation](https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_scps.html)
 and [principal ARN semantics](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_condition-keys.html#condition-keys-principalarn).
 
 The cap denies operations such as IAM changes, role assumption, key grants,
 cancelling deletion, and changes to existing key policies even if another policy
 later grants them. `CreateKey` can still set an initial key policy. Keep the helper’s
-default key policy and lockout safety check; exercise actual key creation under the
-SCP before declaring it compatible. Do not work around a failure by disabling the
-safety check or adding key-administration permissions without a separate review.
+default key policy and lockout safety check, which passed actual key creation under
+the applied SCP. Repeat that check after future permission changes. Do not work
+around a failure by disabling the safety check or adding key-administration
+permissions without a separate review.
 
 ### KMS RCP
 
@@ -70,15 +96,24 @@ are denied, including calls from the management account.
 The service restriction deliberately fails closed when `aws:SourceAccount` is
 absent. These disposable signing keys have no required direct AWS-service use.
 Review this restriction before adding a service integration that omits that key;
-do not reuse the draft unchanged for general-purpose production keys.
+do not reuse the policy unchanged for general-purpose production keys.
 
-Keep `RCPFullAWSAccess`; the draft supplies additional denies. RCPs do not restrict
+Access Analyzer reported `RCP_MISSING_SERVICE_CONDITION_KEY_NULL_CHECK` for
+`DenyServiceRequestsWithoutLocalSourceAccount`. The applied statement intentionally
+denies direct AWS service requests when `aws:SourceAccount` is missing. Adding
+`"Null": {"aws:SourceAccount": "false"}` would make that deny skip missing-key
+requests.
+
+The warning was retained with the reviewed strict behavior; successful GitHub-role tests do not establish compatibility with future service integrations.
+See the [AWS warning reference](https://docs.aws.amazon.com/IAM/latest/UserGuide/access-analyzer-reference-policy-checks.html).
+
+Keep `RCPFullAWSAccess`; the policy supplies additional denies. RCPs do not restrict
 service-linked roles or AWS-managed KMS keys, and KMS `RetireGrant` has an RCP
 exception. The SCP separately denies grant-management operations for the integration
 role. See [RCP scope and exceptions](https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_rcps.html)
 and [confused-deputy controls](https://docs.aws.amazon.com/IAM/latest/UserGuide/confused-deputy.html).
 
-### Limits these drafts do not solve
+### Limits of these policies
 
 - Tagging permission can retag existing keys. Keep this account dedicated to
   disposable tests; the shared role is not an isolation boundary between repositories.
@@ -87,9 +122,9 @@ and [confused-deputy controls](https://docs.aws.amazon.com/IAM/latest/UserGuide/
 - Key creation and signing can incur costs. Expiry tags and the daily sweeper do
   not impose a hard budget or constrain malicious code that already has the role.
 - Organization-wide logging, detection, root-access, and administrator protections
-  remain separate controls. These account-specific drafts do not replace them.
+  remain separate controls. These account-specific policies do not replace them.
 
-## Validation before application
+## Validation before future changes
 
 The bootstrap IAM user and local static-credential profile have been removed.
 Use an existing IAM Identity Center account-administration profile. Replace both
@@ -125,28 +160,36 @@ are no findings. Validation checks policy syntax and policy issues; it does not
 prove combined IAM/SCP/RCP/KMS behavior or inspect inherited organization policies.
 See [ValidatePolicy](https://docs.aws.amazon.com/access-analyzer/latest/APIReference/API_ValidatePolicy.html).
 
-## Cutover order
+## Future changes and cutover order
 
-1. **Review and validate** the three policies. Merge the documentation/fixture PRs
-   after ordinary CI; merging does not apply AWS permissions or change the region.
+The initial rollout is complete; the commands below are an administration and
+rollback reference. Do not recreate the existing policies or repeat the migration
+for routine workflow runs. For another region change, review all region-specific
+policy values and commands first.
+
+1. **Review and validate** the updated policy documents. Repository changes do not
+   apply AWS permissions or change GitHub environment variables.
 2. **Quiesce AWS workflows** in both repositories: let active integration/release/
-   cleanup jobs finish and avoid new dispatches or release tags during the switch.
-   If the change overlaps the daily cleanup schedules, temporarily disable only
-   those cleanup workflows and re-enable them immediately afterward.
-3. **Record rollback values** and update the managed policy using the command below.
-   The role attachment and OIDC trust stay unchanged.
-4. **Change both environment variables** to `us-west-2` using the commands below.
-   Once both are updated and IAM propagation completes, test manual integration in
-   both repositories. Verify signing, CloudTrail visibility, and key cleanup.
-5. **Attach the reviewed SCP and RCP** to this account. Rerun manual integration and
-   cleanup in both repositories to check the combined controls. Keep the organization
+   cleanup jobs finish and avoid new dispatches or release tags during the update.
+   Before removing access to a region, schedule deletion of its outstanding test
+   keys. If the change overlaps daily cleanup schedules, temporarily disable only
+   those workflows and re-enable them immediately afterward.
+3. **Record rollback values:** both environment regions, the managed-policy default
+   version, and the existing SCP/RCP IDs and contents. Keep the organization
    administration session available for rollback.
-6. Confirm that normal workflow scheduling is restored and all newly created test
-   keys have reached `PendingDeletion`.
+4. **Apply reviewed changes together:** update the managed policy and any affected
+   existing SCP/RCP, then change both `AWS_REGION` values if needed. The already
+   attached SCP must agree with the selected region before workflows resume.
+   The integration role attachment and OIDC trust do not need replacement.
+5. **Verify the combined configuration** after propagation: run manual integration
+   and orphan cleanup in both repositories. Check signing, CloudTrail visibility,
+   and successful key-deletion scheduling.
+6. Restore normal scheduling and confirm every newly created test key has reached
+   `PendingDeletion`.
 
-The region change needs one coordinated policy-first cutover, not an intermediate
-policy granting access to two regions. Testing the new region before attaching
-organization guardrails separates region problems from guardrail problems.
+The original rollout tested the new region before attaching the SCP/RCP, then
+repeated the tests with both attached. Future updates must account for the active
+guardrails; changing only IAM permissions or `AWS_REGION` can leave them inconsistent.
 
 ### Update the existing managed policy
 
@@ -181,7 +224,22 @@ gh variable set AWS_REGION --env integration --repo duncm/openpgp-sign-kms-cli -
 with `gh variable get AWS_REGION --env integration --repo OWNER/REPOSITORY`.
 Historical workflow logs and immutable releases retain their original contents.
 
-### Create and attach organization policies
+### Update existing organization policies
+
+Both policies are already created and attached for this account. Set `SCP_ID` and
+`RCP_ID` to their recorded Organizations policy IDs, save their current contents,
+and update those policies rather than creating duplicates:
+
+```sh
+aws --profile "$ORG_ADMIN_PROFILE" organizations update-policy \
+  --policy-id "$SCP_ID" --content file://docs/iam/integration-role-scp.json
+aws --profile "$ORG_ADMIN_PROFILE" organizations update-policy \
+  --policy-id "$RCP_ID" --content file://docs/iam/integration-kms-rcp.json
+```
+
+### Fresh deployments only: create and attach organization policies
+
+The creation commands below are for a new deployment, not this completed rollout.
 
 First confirm that the organization has all features and that the SCP and RCP
 policy types are enabled at its root. Retain existing allow baselines. If a type is
@@ -222,13 +280,15 @@ key access outside the account/region, and external-principal KMS access under t
 RCP. Access Analyzer alone is not an enforcement test. Do not issue destructive
 API calls merely to test a deny; use policy evaluation or disposable fixtures.
 
-If a guardrail blocks valid integration, stop new AWS jobs and detach only the
-new account-level SCP/RCP using their recorded IDs from the organization admin
-session. Keep normal inherited organization protections in place.
+If a policy update blocks valid integration, stop new AWS jobs and restore the
+saved SCP/RCP contents using their existing IDs from the organization admin session.
+For a newly introduced policy in a fresh deployment, roll back only that new
+account attachment. Keep existing and inherited organization protections in place.
 
 For a region rollback, first schedule deletion of any new-region test keys while
-permissions still allow cleanup. Reconcile or detach the new region-specific SCP,
-restore the previous managed-policy default, and restore both environment regions:
+permissions still allow cleanup. Restore the previous region-specific SCP contents,
+the previous managed-policy default, and both environment regions. Restore the
+previous RCP contents too if they changed:
 
 ```sh
 aws --profile "$ACCOUNT_ADMIN_PROFILE" iam set-default-policy-version \

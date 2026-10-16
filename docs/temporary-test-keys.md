@@ -9,10 +9,10 @@ keys are no longer required by the current workflows.
 | CLI | One RSA-3072 and one Ed25519 key | 4 |
 
 The role and region still come from the `integration` environment's
-`AWS_ROLE_ARN` and `AWS_REGION` variables. The target test region is `us-west-2`;
-follow the [policy and region cutover](aws-guardrails.md) before changing an existing
-environment. The helper supplies generated key ARNs
-through `GITHUB_ENV`; the action and CLI signing interfaces are unchanged.
+`AWS_ROLE_ARN` and `AWS_REGION` variables. Both repositories use `us-west-2`.
+The [completed rollout and verification runs](aws-guardrails.md#verified-rollout)
+record the region change and applied guardrails. The helper supplies generated key
+ARNs through `GITHUB_ENV`; the action and CLI signing interfaces are unchanged.
 
 ## Lifecycle and cleanup
 
@@ -65,16 +65,17 @@ policy. The bootstrap IAM user and its local static-credential profile have been
 removed; administration uses IAM Identity Center or an organization administration
 role. GitHub workflows continue to authenticate through OIDC.
 
-The files below are review drafts for the region change and additional guardrails.
-Preparing or merging them does not update AWS policies or GitHub environment variables.
+The managed policy, SCP, and KMS RCP below are applied and were verified together
+on 16 October 2026. See the [successful integration and cleanup runs](aws-guardrails.md#verified-rollout).
+Future repository edits still require separate AWS policy updates.
 
 | Policy | Purpose |
 | --- | --- |
-| [Managed policy](iam/integration-role-policy.json) | Existing permissions retargeted to `us-west-2` |
+| [Managed policy](iam/integration-role-policy.json) | Temporary-key operations in `us-west-2` |
 | [Integration-role SCP](iam/integration-role-scp.json) | Deny unexpected operations, other regions, and other key resources |
 | [KMS RCP](iam/integration-kms-rcp.json) | Restrict access to this account’s customer-managed keys |
 
-The drafts target account `889580843530` and the two `duncm` repositories.
+The policies target account `889580843530` and the two `duncm` repositories.
 Other deployments must substitute their account, role ARN, region, and repository
 names. See [guardrail scope, validation, and application](aws-guardrails.md).
 
@@ -106,10 +107,11 @@ production account. Both repositories share the role; repository filtering in th
 helper prevents accidental cross-repository cleanup, not access by hostile code
 already authorized to assume that shared role.
 
-### Apply after review
+### Future policy updates
 
-Use the [managed-policy update and cutover procedure](aws-guardrails.md#cutover-order).
-Create a new default version of the existing managed policy; do not recreate an
+Use the [validation and administration guide](aws-guardrails.md#validation-before-future-changes)
+before changing permissions. Create a new default version of the existing managed
+policy and update the existing organization policies as needed; do not recreate an
 inline policy or a bootstrap IAM user.
 
 No permanent key-ARN GitHub variables are needed. Current workflows receive their
@@ -138,11 +140,12 @@ Tests cover partial creation, lost responses, readiness failures, cleanup retrie
 malformed journals, ownership/account/region guards, expiry, pagination settings,
 dry runs, and idempotence. Both CI workflows run them without AWS credentials.
 
-The previous managed-policy contents passed IAM Access Analyzer validation and live
-integration. The new-region policy and organization guardrails require fresh
-validation; prior results do not validate the SCP/RCP or their combined effects.
-The [guardrail guide](aws-guardrails.md#validation-before-application) includes
-Access Analyzer commands and the live acceptance checks to run after review.
+Live integration and orphan cleanup passed in `us-west-2` with the managed policy,
+SCP, and RCP applied. The [verification record](aws-guardrails.md#verified-rollout)
+links the runs and distinguishes actual job-level deletion scheduling from orphan
+sweeps that found no expired candidates. Future policy changes require fresh
+validation and live checks; the [guardrail guide](aws-guardrails.md#validation-before-future-changes)
+contains the commands and the documented RCP warning.
 
 Offline lifecycle tests remain credential-free. Integration and daily cleanup use
 the GitHub OIDC role, not a local profile.
